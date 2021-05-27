@@ -18,11 +18,11 @@ Two minor modes for Emacs, `spaceship-mode` and `tabble-mode`, automatically alt
 * **No user interface.** This code is provided as a backend only, and relies on conventions that are contradictory to the assumptions of stock Emacs. It will take some effort to integrate it into your workflow.
 * **No promises.** It works on my system, and I'm offering it in hope it will be useful to others.  It uses the `after-change-functions` hook in a heavy way and may be incompatible with other major modes or popular packages.
 
-## What it Does, Precisely
+## What It Does, Precisely
 
 ### spaceship-mode
 
-Certain spaces have their widths adjusted to match that of another character on the previous line; generally speaking the nth initial space will match the nth character on the previous line, which might itself be an initial space that matches something further back.  We need to define precisely when this matching happens.  A character matches another character exactly when:
+Certain spaces have their widths adjusted to match that of another character on the previous line; generally speaking the nth initial space will match the nth character on the previous line, which might itself be an initial space that matches something further back.  To be precise, a character matches another character exactly when:
 
 * All previous characters on the same line match something, and
 * There is a corresponding character on the previous line and it is eligible to be matched by this character:
