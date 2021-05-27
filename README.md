@@ -30,15 +30,15 @@ Certain spaces have their widths adjusted to match that of another character on 
 	* A space can match any character *except* a tab.
 	* Other characters do not match anything.
 
-Each matching space has its width modified to be the same as the character it matches.  This applies recursively: if the matched character's width is itself modified, the modified with is matched.
+Each matching space has its width modified to be the same as the character it matches.  This applies recursively: if the matched character's width is itself modified, the modified width is matched.
 
 The rules produce good results when tabs are used for indentation, meaning a standard horizontal offset, and spaces are used for alignment.  The rules allow relative indentation: if a line has spaces and then tabs, the tabs cause indentation by a standard amount relative to the alignment point indicated by the spaces.
 
-All tabs which are part of the leading space of a line (the spaces and tabs occuring before any printing character) have their width stnadardized by `spaceship-mode`.  The variable `spaceship-tab-pixel-width` determines the width of these tabs.  The usual Emacs variables controlling the display of tabs are ignored (but they still apply for other tabs, unless `tabble-mode` is also used).
+All tabs which are part of the leading space of a line (the spaces and tabs occuring before any printing character) have their width standardized by `spaceship-mode`.  The variable `spaceship-tab-pixel-width` determines the width of these tabs.  The usual Emacs variables controlling the display of tabs are ignored (but they still apply for other tabs, unless `tabble-mode` is also used).
 
 ### tabble-mode
 
-Let's call tabs which are not part of the leading space “tabble tabs”.  A maximal sequence of consecutive lines containing tabble tabs form a *tabble*.  `tabble-mode` adjusts the width of all tabble tabs so that the columns of each tabble are left-aligned.  Note that the first cell of each row cannot be empty since otherwise there would be no tabble tabs in that line and the tabble would be ended.
+Let's call tabs which are not part of the leading space *tabble tabs*.  A maximal sequence of consecutive lines containing tabble tabs form a *tabble*.  `tabble-mode` adjusts the width of all tabble tabs so that the columns of each tabble are left-aligned.  Note that the first cell of each row cannot be empty since otherwise there would be no tabble tabs in that line and the tabble would be ended.
 
 ### spaceship-auto-preserve
 
