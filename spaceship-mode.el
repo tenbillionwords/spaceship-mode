@@ -14,7 +14,12 @@
 ;;; spaceship-mode treats other space characters as printing characters.
 
 (defvar spaceship-tab-pixel-width 20
-  "spaceship-mode will adjust all leading-space tabs to have this width")
+  "‘spaceship-mode’ will adjust all leading-space tabs to have this width")
+
+(defvar spaceship-auto-preserve nil
+  "Whether ‘spaceship-mode’ should attempt to preserve the alignment of blocks
+of code or text aligned to a line when that line is edited before the point of
+alignment.")
 
 (define-minor-mode spaceship-mode
   "Automatically adjust width of space characters in certain places to allow
@@ -428,11 +433,6 @@ the contents otherwise unchanged."
       (insert (car lines)) ; first line
       (dolist (line (cdr lines))
         (insert "\n" new-prefix line)))))
-
-(defvar spaceship-auto-preserve nil
-  "Whether ‘spaceship-mode’ should attempt to preserve the alignment of blocks
-of code or text aligned to a line when that line is edited before the point of
-alignment.")
 
 (defvar spaceship-preserved-block nil
   "The spaceship-block saved for the purpose of having its alignment
