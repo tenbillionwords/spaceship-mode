@@ -1,0 +1,63 @@
+aaaa|	four a's and a bar
+    |	four spaces and a bar
+
+iiii|	four i's and a bar
+    |	four spaces and a bar
+
+Try typing spaces on the next line, noticing where the cursor falls.
+
+
+
+
+
+Example tabble to play with:
+
+Column A	Column B	Column C
+short	cells	first row
+a very long cell here		notice the blank cell
+mostly-blank row	
+another row	which is still in the tabble	b/c the previous line ended in a tab
+
+
+
+
+
+Relative indentation test:
+
+	start outer block |
+	                  | align to bar
+	                      start inner block
+	                      this block is indented from the bar
+	                      the leading space here has tabs followed by spaces followed by tabs
+	                      end inner block
+	                  |
+	end outer block
+
+
+
+
+
+A code example.  Yes, tabble-mode is basically the same thing as “elastic tabstops”, but notice how you also need spaceship-mode to align the broken up sum.
+
+void exampleFunc(int s, int medium, int verylongargname) {
+	printf("sum of numbers: %i", s +	/* the first arg	*/
+	                             medium +	/* the second arg	*/
+	                             verylongargname);	/* the third arg	*/
+	                             
+	                             
+	                             
+
+spaceship-auto-preserve test: evaluate the Lisp code (e.g. with ‘M-:’) and then try adding or removing x's:
+
+(setq-local spaceship-auto-preserve t)
+
+xxxxxx |
+       |
+       	asdf |
+       	     |
+       |
+       |
+       |
+
+
+

@@ -491,4 +491,37 @@ from the public release because it circumvents a well-conceived safety feature."
     (spaceship-try-preserve-block start end len)
     (spaceship-do-region start end)))
 
+;;; the following two functions are intentionally simplistic UI fixes to make
+;;; spaceship-mode easier to demo in stock emacs
+
+(defun spaceship-simple-indent-line-function ()
+  "Copy the previous line's indentation.  This is a simple function to use as
+value of ‘indent-line-function’ to prevent emacs from messing up the
+‘spaceship-mode’ conventions."
+  (let (prev-start prev-end prev-indentation start end)
+    (save-excursion
+      (beginning-of-line 0)
+      (setq prev-start (point))
+      (setq prev-end (re-search-forward "[ \t]*"))
+      (setq prev-indentation (buffer-substring prev-start prev-end)))
+    (back-to-indentation)
+    (setq end (point))
+    (beginning-of-line)
+    (delete-region (point) end)
+    (insert prev-indentation)))
+
+(defun spaceship-in-indentation-p ()
+  (save-match-data
+    (let ((line-start (line-beginning-position)))
+      (and (< line-start (point))
+           (string-match "\\`[ \t]*\\'"
+                         (buffer-substring-no-properties
+                          line-start (point)))))))
+
+(defun spaceship-delete-indentation-or-word ()
+  (interactive)
+  (if (spaceship-in-indentation-p)
+      (delete-region (line-beginning-position) (point))
+    (backward-kill-word)))
+
 (provide 'spaceship-mode)
