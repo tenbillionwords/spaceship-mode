@@ -14,8 +14,8 @@ Two minor modes for Emacs, `spaceship-mode` and `tabble-mode`, automatically alt
 ## Caveats
 
 * **Non-standard space/tab conventions.** You must use spaces and tabs consistently in a way that supports the mode.  In particular, with `spaceship-mode` you must strictly adhere to the convention of using tabs for indentation and spaces for alignment; otherwise it won't work.
-* **No user interface.** This code is provided as a backend only, and relies on conventions that are contradictory to the assumptions of stock Emacs. It will take some effort to integrate it into your workflow.
-* **No promises.** It works on my system, and I'm offering it in hope it will be useful to others.  It uses the `after-change-functions` hook in a heavy way and may be incompatible with other major modes or popular packages.
+* **No user interface.** This code is provided as a backend only, and relies on conventions that are contradictory to the assumptions of stock Emacs. It will take some effort to integrate it into your workflow.  See example setup below for some clues on how to get started.
+* **No promises.** At time of release this code is untested with most major modes and popular emacs extensions.  Issue reports are welcome, but please read the next section carefully first to be sure you understand the expected behavior.  Not all programming languages have syntax compatible with these conventions.
 
 ## What It Does, Precisely
 
@@ -82,3 +82,8 @@ If the variable `spaceship-auto-preserve` is set to `t`, then `spaceship-mode` w
     (local-set-key [tab] '(lambda () (interactive) (insert "\t")))))
 ```
 3. Open up `~/spaceship-mode/test.txt` and give it a whirl.
+
+## Known Issues
+
+* These modes do not work correctly with `line-number-mode`.
+* Changing the font size will mess up the alignment, or anything else that affects display widths without runnning `after-change-functions`.  You can manually run the commands `spaceship-do-buffer` and/or `tabble-do-buffer` to fix this when it happens.
