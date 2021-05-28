@@ -42,3 +42,43 @@ Let's call tabs which are not part of the leading space *tabble tabs*.  A maxima
 ### spaceship-auto-preserve
 
 If the variable `spaceship-auto-preserve` is set to `t`, then `spaceship-mode` will also try to modify the leading space of aligned blocks of code to preserve the alignment whenever the alignment point shifts position due to editing.  This feature is considered experimental; see the code for details.
+
+## Example Setup
+
+1. Clone the repo using `git clone`.  Here I assume you put it in `~/spaceship-mode/`.
+2. Add the following code to your init file:
+```
+(push "~/spaceship-mode/" load-path)
+
+(require 'spaceship-mode)
+(require 'tabble-mode)
+
+;; (setq spaceship-auto-preserve t) ; uncomment this if you dare
+
+;; always use tabble-mode with spaceship-mode
+(add-hook 'spaceship-mode-hook '(lambda () (tabble-mode 1)))
+
+;; define a variable-width font face to use with spaceship-mode.  Replace the
+;; "Sans Serif" with any nice Unicode font you have on your system, such as
+;; "DejaVu Serif" or "STIX Two Math".
+(defface spaceship-face
+  '((t :family "Sans Serif"))
+  "sans serif (should be variable-width)")
+	
+;; we will make text-mode always use spaceship-mode, with some tweaks to prevent
+;; emacs from clobbering the space/tabs conventions
+(add-hook
+ 'text-mode-hook
+ '(lambda ()
+    (face-remap-add-relative 'default 'spaceship-face)
+    (spaceship-mode 1)
+    ;; make auto-indent just copy previous line's leading space
+    (setq-local indent-line-function 'spaceship-simple-indent-line-function)
+    ;; auto-indent only new line, not previous
+    (setq electric-indent-inhibit t)
+    ;; use C-backspace to delete all line indentation before point
+    (local-set-key [C-backspace] 'spaceship-delete-indentation-or-word)
+    ;; make tab just insert tab
+    (local-set-key [tab] '(lambda () (interactive) (insert "\t")))))
+```
+3. Open up `~/spaceship-mode/test.txt` and give it a whirl.
