@@ -46,7 +46,7 @@ If the variable `spaceship-auto-preserve` is set to `t`, then `spaceship-mode` w
 
 ## Example Setup
 
-1. Clone the repo using `git clone https://github.com/tenbillionwords/spaceship-mode.git`.  Here I assume you put it in `~/spaceship-mode/`.
+1. Clone the repo or otherwise acquire the files.  Here I assume you put them in `~/spaceship-mode/`.
 2. Add the following code to your init file:
 ```
 (push "~/spaceship-mode/" load-path)
