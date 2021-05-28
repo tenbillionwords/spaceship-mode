@@ -82,7 +82,7 @@ If the variable `spaceship-auto-preserve` is set to `t`, then `spaceship-mode` w
     ;; make tab just insert tab
     (local-set-key [tab] '(lambda () (interactive) (insert "\t")))))
 ```
-3. Open up `~/spaceship-mode/test.txt` and give it a whirl.
+3. Make a copy of `~/spaceship-mode/test.txt` and give it a whirl.
 
 ## Known Issues
 
