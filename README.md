@@ -7,8 +7,7 @@ Two minor modes for Emacs, `spaceship-mode` and `tabble-mode`, automatically alt
 
 1. With a variable-width font, these modes provide some of the alignment functionality that you would otherwise have gotten for free by counting characters in a fixed-width font.  This is the main reason I wrote them.
 	* Using `spaceship-mode`, the initial spaces on a line will have their width adjusted to match the same number of characters on previous lines, so that the left edge of the text/code will be aligned as it would be in a fixed-width font.
-	* Using `tabble-mode`, you can use tabs in a non-standard way (a.k.a. “elastic tabs”) to align text/code at positions other than the left edge.
-3. Certain features may be useful even with fixed-width fonts.
+	* Using `tabble-mode`, you can use tabs to align text in other places than the left edge.  `tabble-mode` is essentially an implementation of [elastic tabstops](https://nickgravgaard.com/elastic-tabstops/).
 	* Using `tabble-mode` you can quickly create automatically-aligned tables (“tabbles”) in text or code using tab characters as the column separator.
 	* Using `spaceship-mode` with `spaceship-auto-preserve` (considered experimental and disabled by default), aligned code blocks will have their alignment preserved in certain situations when the code they are aligned to changes position during editing.
 
@@ -18,11 +17,11 @@ Two minor modes for Emacs, `spaceship-mode` and `tabble-mode`, automatically alt
 * **No user interface.** This code is provided as a backend only, and relies on conventions that are contradictory to the assumptions of stock Emacs. It will take some effort to integrate it into your workflow.
 * **No promises.** It works on my system, and I'm offering it in hope it will be useful to others.  It uses the `after-change-functions` hook in a heavy way and may be incompatible with other major modes or popular packages.
 
-## What it Does, Precisely
+## What It Does, Precisely
 
 ### spaceship-mode
 
-Certain spaces have their widths adjusted to match that of another character on the previous line; generally speaking the nth initial space will match the nth character on the previous line, which might itself be an initial space that matches something further back.  We need to define precisely when this matching happens.  A character matches another character exactly when:
+Certain spaces have their widths adjusted to match that of another character on the previous line; generally speaking the nth initial space will match the nth character on the previous line, which might itself be an initial space that matches something further back.  To be precise, a character matches another character exactly when:
 
 * All previous characters on the same line match something, and
 * There is a corresponding character on the previous line and it is eligible to be matched by this character:
