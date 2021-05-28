@@ -1,11 +1,28 @@
 ;; -*- lexical-binding: t; -*-
-(require 'cl-lib)
-(require 'spaceship-mode)
+
+;; spaceship-mode and tabble-mode
+;; Copyright (C) 2021 Scott Messick (tenbillionwords)
+
+;; This program is free software: you can redistribute it and/or modify
+;; it under the terms of the GNU General Public License as published by
+;; the Free Software Foundation, either version 3 of the License, or
+;; (at your option) any later version.
+
+;; This program is distributed in the hope that it will be useful,
+;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;; GNU General Public License for more details.
+
+;; You should have received a copy of the GNU General Public License
+;; along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Terminology: a tab after a printing char on a line is a “tabble tab” and a
 ;;; line which has one is a “tabble line”.  A sequence of one or more
 ;;; consecutive lines which have tabble tabs is a single “tabble”.  See also the
 ;;; terminology note in spacioue-mode.el
+
+(require 'cl-lib)
+(require 'spaceship-mode)
 
 (defvar tabble-column-margin 12) ; in pixels
 
