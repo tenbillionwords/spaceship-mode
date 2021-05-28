@@ -1,3 +1,4 @@
+
 aaaa|	four a's and a bar
     |	four spaces and a bar
 
