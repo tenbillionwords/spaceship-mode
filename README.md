@@ -38,7 +38,7 @@ All tabs which are part of the leading space of a line (the spaces and tabs occu
 
 ### tabble-mode
 
-Let's call tabs which are not part of the leading space *tabble tabs*.  A maximal sequence of consecutive lines containing tabble tabs form a *tabble*.  `tabble-mode` adjusts the width of all tabble tabs so that the columns of each tabble are left-aligned.  Note that the first cell of each row cannot be empty since otherwise there would be no tabble tabs in that line and the tabble would be ended.
+Let's call tabs which are not part of the leading space *tabble tabs*.  A maximal sequence of consecutive lines containing tabble tabs and with the same leading-space form a *tabble*.  `tabble-mode` adjusts the width of all tabble tabs so that the columns of each tabble are left-aligned.  Note that the first cell of each row cannot be empty since otherwise there would be no tabble tabs in that line and the tabble would be ended.
 
 ### spaceship-auto-preserve
 

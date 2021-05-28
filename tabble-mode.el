@@ -19,19 +19,20 @@
 ;;; Terminology: a tab after a printing char on a line is a “tabble tab” and a
 ;;; line which has one is a “tabble line”.  A sequence of one or more
 ;;; consecutive lines which have tabble tabs is a single “tabble”.  See also the
-;;; terminology note in spacioue-mode.el
+;;; terminology note in spacious-mode.el
 
 (require 'cl-lib)
 (require 'spaceship-mode)
 
-(defvar tabble-column-margin 12) ; in pixels
+(defvar tabble-column-minimum-margin 12) ; in pixels
 
 (define-minor-mode tabble-mode
   "Automatically adjust the width of tab characters which occur after the first
 printing char on a line (henceforth: “tabble tabs”) so to allow forming a kind
 of table (“tabbles”).  A tabble is formed by a sequence of consecutive lines
-which each have tabble tabs, and the corresponding tabble tabs are adjusted so
-that the following text has the same horizontal position on each line.
+which each have tabble tabs and all have the same leading-space, and the
+corresponding tabble tabs are adjusted so that the following text has the same
+horizontal position on each line.
 
 One consequence of these rules is that every tabble cell in the first column
 must have an entry, to avoid ending the tabble.  Other columns can be
@@ -163,7 +164,7 @@ calculating the correct widths needed to align the columns."
              pos (+ pos 1) 'display
              (list 'space :width
                    (list (- (+ (aref (tabble-max-widths the-tabble) col)
-                               tabble-column-margin)
+                               tabble-column-minimum-margin)
                             (tabble-cell-width cell)))))
             (put-text-property
              pos (+ pos 1) 'tabble-adjusted
