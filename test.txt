@@ -37,7 +37,7 @@ Relative indentation test:
 
 
 
-A code example.  Yes, tabble-mode is basically the same thing as “elastic tabstops”, but notice how you also need spaceship-mode to align the broken up sum.
+A code example using both modes.  Yes, tabble-mode is basically the same thing as “elastic tabstops”, but notice how you also need spaceship-mode to align the broken-up sum.
 
 void exampleFunc(int s, int medium, int verylongargname) {
 	printf("sum of numbers: %i", s +	/* the first arg	*/
