@@ -63,13 +63,13 @@ can run ‘spaceship-do-buffer’ to fix it."
   (spaceship-do-buffer)
   ;; add change function to beginning of list, to ensure it comes before that of
   ;; tabble
-  (add-hook
-   'before-change-functions 'spaceship-before-change-function nil t)
-  (add-hook
-   'after-change-functions 'spaceship-after-change-function nil t))
+  (add-hook 'before-change-functions 'spaceship-before-change-function nil t)
+  (add-hook 'after-change-functions 'spaceship-after-change-function nil t)
+  (add-hook 'text-scale-mode-hook 'spaceship-do-buffer nil t))
 
 (defun spaceship-mode--disable ()
   (remove-hook 'after-change-functions 'spaceship-after-change-function t)
+  (remove-hook 'text-scale-mode-hook 'spaceship-do-buffer t)
   (spaceship-clear-buffer))
 
 (defun spaceship-text-pixel-width (start end)

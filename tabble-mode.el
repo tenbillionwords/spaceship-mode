@@ -45,12 +45,12 @@ empty (which happens when there are consecutive tabble tabs)."
 (defun tabble-mode--enable ()
   (tabble-do-buffer)
   ;; append the change function, to ensure it comes after that of spaceship
-  (add-hook
-   'after-change-functions #'tabble-after-change-function t t))
+  (add-hook 'after-change-functions 'tabble-after-change-function t t)
+  (add-hook 'text-scale-mode-hook 'tabble-do-buffer t t))
 
 (defun tabble-mode--disable ()
-  (remove-hook
-   'after-change-functions #'tabble-after-change-function t)
+  (remove-hook 'after-change-functions 'tabble-after-change-function t)
+  (remove-hook 'text-scale-mode-hook 'tabble-do-buffer t)
   (tabble-clear-buffer))
 
 (cl-defstruct tabble rows (num-cols 0) (max-widths []))
