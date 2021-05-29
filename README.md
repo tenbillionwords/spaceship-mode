@@ -87,4 +87,4 @@ If the variable `spaceship-auto-preserve` is set to `t`, then `spaceship-mode` w
 ## Known Issues
 
 * These modes do not work correctly with `line-number-mode`.
-* Changing the font size will mess up the alignment, or anything else that affects display widths without runnning `after-change-functions`.  You can manually run the commands `spaceship-do-buffer` and/or `tabble-do-buffer` to fix this when it happens.
+* Changing the font can mess up the alignment, or anything else that affects display widths without runnning `after-change-functions` or `text-scale-mode-hook`.  You can manually run the commands `spaceship-do-buffer` and/or `tabble-do-buffer` to fix this when it happens.
