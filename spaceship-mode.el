@@ -539,6 +539,6 @@ value of ‘indent-line-function’ to prevent emacs from messing up the
   (interactive)
   (if (spaceship-in-indentation-p)
       (delete-region (line-beginning-position) (point))
-    (backward-kill-word)))
+    (backward-kill-word 1)))
 
 (provide 'spaceship-mode)
