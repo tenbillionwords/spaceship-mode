@@ -379,7 +379,7 @@ will end there."
   "Return the implied spaceship-block starting at START in current buffer.  The
 implied block is the longest legal block starting from a given position which is
 non-trivial in the sense that the prefix is non-empty.  It ends only when the
-next line no longer non-trivially matches under spaceship-mode rules."
+next line no longer non-trivially matches under `spaceship-mode' rules."
   (cl-block func
     (let (lines prefix prefix-len prefix-has-space possible-end)
       (save-excursion
@@ -453,8 +453,7 @@ the contents otherwise unchanged."
         (insert "\n" new-prefix line)))))
 
 (defvar spaceship-preserved-block nil
-  "The spaceship-block saved for the purpose of having its alignment
-preserved.")
+  "The spaceship-block saved for the purpose of having its alignment preserved.")
 
 (defvar spaceship-saved-change-end nil
   "The end position of the spaceship-block trying to be preserved.")
@@ -481,11 +480,14 @@ preserved.")
         spaceship-saved-change-end nil))
 
 (defmacro spaceship-with-reported-errors (name &rest body)
-  "Execute BODY, trapping and reporting any errors which occur. This is a
-debugging utility for spaceship-mode and tabble-mode; it's really annoying when
-even a single error in an after-change or before-change function causes
-everything to immediately stop functioning.  I have removed calls to this macro
-from the public release because it circumvents a well-conceived safety feature."
+  "Execute BODY, trapping and reporting any errors which occur.
+This is a debugging utility for `spaceship-mode' and
+`tabble-mode', which catches errors and shows a message prefixed
+with NAME.  It's really annoying when even a single error in an
+after-change or before-change function causes everything to
+immediately stop functioning.  I have removed calls to this macro
+from the public release because it circumvents a well-conceived
+safety feature."
   (declare (indent 1))
   (let ((err (make-symbol "error")))
   `(condition-case ,err
@@ -513,8 +515,9 @@ from the public release because it circumvents a well-conceived safety feature."
 ;;; spaceship-mode easier to demo in stock emacs
 
 (defun spaceship-simple-indent-line-function ()
-  "Copy the previous line's indentation.  This is a simple function to use as
-value of ‘indent-line-function’ to prevent emacs from messing up the
+  "Copy the previous line's indentation.
+This is a simple function to use as value of
+‘indent-line-function’ to prevent Emacs from messing up the
 ‘spaceship-mode’ conventions."
   (let (prev-start prev-end prev-indentation end)
     (save-excursion
