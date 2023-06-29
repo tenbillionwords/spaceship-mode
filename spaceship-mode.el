@@ -74,7 +74,10 @@ can run ‘spaceship-do-buffer’ to fix it."
 
 (defun spaceship-text-pixel-width (start end)
   "Return the pixel width of text between START and END in current buffer."
-  (car (window-text-pixel-size nil start end)))
+  (let ((c (car (window-text-pixel-size nil start end))))
+    (if (> c 0) c ;; Emacs bug: sometimes the returned window-text-pixel-size is negative. In this case computing it indirectly like below seems to fix the issue.
+      (- (car (window-text-pixel-size nil (1- start) end))
+         (car (window-text-pixel-size nil (1- start) start))))))
 
 (defun spaceship-show-text-pixel-width (start end)
   "Display pixel width of region text in minibuffer (debug utility for
