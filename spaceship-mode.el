@@ -272,6 +272,7 @@ with START and continuing to the next safe line."
         (point-max))))
 
 (defun spaceship-do-region (start end)
+  (interactive "r")
   "Adjust width of all leading-space spaces and tabs between START and END in
 current buffer, according to spaceship-mode rules."
   (spaceship-with-suitable-window
