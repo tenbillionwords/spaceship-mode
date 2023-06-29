@@ -275,9 +275,9 @@ with START and continuing to the next safe line."
         (point-max))))
 
 (defun spaceship-do-region (start end)
+  "Adjust width of all leading-space spaces and tabs in given region.
+The region is between START and END in current buffer"
   (interactive "r")
-  "Adjust width of all leading-space spaces and tabs between START and END in
-current buffer, according to spaceship-mode rules."
   (spaceship-with-suitable-window
     (let* ((start (spaceship-find-safe-start start))
            (end (spaceship-find-safe-end end))
@@ -288,10 +288,12 @@ current buffer, according to spaceship-mode rules."
         (setq pos (spaceship-do pos))))))
 
 (defun spaceship-do-buffer ()
+  "Adjust width of all leading-space spaces and tabs in current buffer."
   (interactive)
   (spaceship-do-region (point-min) (point-max)))
 
 (defun spaceship-clear-region (start end)
+  ;; ATTN: currently unclear what this is for.
   (spaceship-clear-region-properties
    start end 'spaceship-adjusted '(spaceship-adjusted display)))
 
