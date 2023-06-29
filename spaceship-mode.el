@@ -392,7 +392,7 @@ next line no longer non-trivially matches under `spaceship-mode' rules."
                               (line-beginning-position) (point))))
         (unless prefix (cl-return-from func nil))
         (setq prefix-len (length prefix))
-        (setq prefix-has-space (seq-contains prefix ?\s))
+        (setq prefix-has-space (seq-contains-p prefix ?\s))
         (cl-block loop
           (while t
             (push (buffer-substring-no-properties
