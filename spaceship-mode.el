@@ -177,6 +177,14 @@ END such that CUE-PROP is t."
                 (t (cl-return-from inner-loop))))))
         (forward-line)))))
 
+(defconst spaceship-safe-line-regexp
+  (rx line-start (* "\t")
+      (? (group (not (any "\s\t\n"))
+                (* not-newline)))
+      line-end)
+  "Regexp to test whether a line is a safe starting point for the adjustments of
+spaceship-mode, meaning it has no leading-space spaces.")
+
 (defun spaceship-do (start)
   "Adjust width of leading-space spaces in current buffer starting at the line
 with START and continuing to the next safe line."
@@ -236,13 +244,6 @@ with START and continuing to the next safe line."
 
 ;; a safe line is a line without a space before a printing char
 
-(defconst spaceship-safe-line-regexp
-  (rx line-start (* "\t")
-      (? (group (not (any "\s\t\n"))
-                (* not-newline)))
-      line-end)
-  "Regexp to test whether a line is a safe starting point for the adjustments of
-spaceship-mode, meaning it has no leading-space spaces.")
 
 ;; (defconst spaceship-safe-line-regexp "^\t*\\([^\s\t\n][^\n]*\\)?$")
 
@@ -493,7 +494,7 @@ from the public release because it circumvents a well-conceived safety feature."
                      ,name
                      (error-message-string ,err))))))
 
-(defun spaceship-before-change-function (start end)
+(defun spaceship-before-change-function (_start end)
   (save-match-data
     (when (and spaceship-auto-preserve
                (not undo-in-progress))
@@ -515,7 +516,7 @@ from the public release because it circumvents a well-conceived safety feature."
   "Copy the previous line's indentation.  This is a simple function to use as
 value of ‘indent-line-function’ to prevent emacs from messing up the
 ‘spaceship-mode’ conventions."
-  (let (prev-start prev-end prev-indentation start end)
+  (let (prev-start prev-end prev-indentation end)
     (save-excursion
       (beginning-of-line 0)
       (setq prev-start (point))
