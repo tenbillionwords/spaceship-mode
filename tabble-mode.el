@@ -24,7 +24,8 @@
 (require 'cl-lib)
 (require 'spaceship-mode)
 
-(defvar tabble-column-minimum-margin 12) ; in pixels
+(defcustom tabble-column-minimum-margin 12
+  "Minimum size of the space that replaces a tab. Expressed in pixels.")
 
 (define-minor-mode tabble-mode
   "Automatically adjust the width of tab characters which occur after the first
