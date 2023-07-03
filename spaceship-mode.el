@@ -30,10 +30,12 @@
 ;;; possible purpose that including other space characters could serve.  Thus
 ;;; spaceship-mode treats other space characters as printing characters.
 
-(defvar spaceship-tab-pixel-width 20
-  "‘spaceship-mode’ will adjust all leading-space tabs to have this width")
+;;; Code:
 
-(defvar spaceship-auto-preserve nil
+(defcustom spaceship-tab-pixel-width 20
+  "‘spaceship-mode’ will adjust all leading-space tabs to have this width.")
+
+(defcustom spaceship-auto-preserve nil
   "Whether ‘spaceship-mode’ should attempt to preserve the alignment of blocks
 of code or text aligned to a line when that line is edited before the point of
 alignment.")
@@ -75,16 +77,36 @@ can run ‘spaceship-do-buffer’ to fix it."
 (defun spaceship-text-pixel-width (start end)
   "Return the pixel width of text between START and END in current buffer."
   (let ((c (car (window-text-pixel-size nil start end))))
-    (if (> c 0) c ;; Emacs bug: sometimes the returned window-text-pixel-size is negative. In this case computing it indirectly like below seems to fix the issue.
+    (if (> c 2) c ;; Emacs bug: sometimes the returned window-text-pixel-size is negative. In this case computing it indirectly like below seems to fix the issue.
       (- (car (window-text-pixel-size nil (1- start) end))
          (car (window-text-pixel-size nil (1- start) start))))))
+
+(defun spaceship-char-pixel-width (pos)
+  "Return the pixel width of char at POS."
+  (if-let (p (get-char-property pos 'spaceship-width))
+      p
+    (let ((c (car (window-text-pixel-size nil pos (1+ pos)))))
+      (if (> c 2) c ;; Emacs bug: sometimes the returned window-text-pixel-size is negative. In this case computing it indirectly like below seems to fix the issue.
+      (- (car (window-text-pixel-size nil (1- pos) (1+ pos)))
+         (car (window-text-pixel-size nil (1- pos) pos)))))))
 
 (defun spaceship-show-text-pixel-width (start end)
   "Display pixel width of region text in minibuffer (debug utility for
 spaceship-mode)"
   (interactive "r")
-  (message "pixel width of region: %s"
+  (message "pixel width of region: %s dbg %s, prop %s"
+           (car (window-text-pixel-size nil start end))
            (spaceship-text-pixel-width start end)))
+
+(defun spaceship-show-char-pixel-width (pos)
+  "Display pixel width of region char at POS .
+(debug utility for spaceship-mode)"
+  (interactive "d")
+  (message "pixel width of region: %s, raw=%s, disp=%s, prop=%s"
+           (spaceship-char-pixel-width pos)
+           (car (window-text-pixel-size nil pos (1+ pos)))
+           (get-char-property pos 'spaceship-width)
+           (get-char-property pos 'display)))
 
 (defmacro spaceship-with-suitable-window (&rest body)
   "Executes BODY in a context where current buffer is guaranteed to have a
@@ -225,15 +247,13 @@ with START and continuing to the next safe line."
                      (cl-return))
                    ;; adjust width
                    (when (eql char ?\s)
-                     (put-text-property
-                      (point) (+ (point) 1)
-                      'display
-                      (list 'space :width
-                            (list (spaceship-text-pixel-width
-                                   candidate-pos (+ candidate-pos 1)))))
-                     (put-text-property
-                      (point) (+ (point) 1)
-                      'spaceship-adjusted t))
+                     (let ((w (spaceship-char-pixel-width candidate-pos)))
+                       (put-text-property (point) (+ (point) 1)
+                                          'display (list 'space :width (list w)))
+                       (put-text-property (point) (+ (point) 1)
+                                          'spaceship-adjusted t)
+                       (put-text-property (point) (+ (point) 1)
+                                          'spaceship-width w)))
                    ;; advance
                    (forward-char))
           (setq prev-line-start cur-line-start)
@@ -293,9 +313,9 @@ The region is between START and END in current buffer"
   (spaceship-do-region (point-min) (point-max)))
 
 (defun spaceship-clear-region (start end)
-  ;; ATTN: currently unclear what this is for.
+  "Remove all spaceship-mode properties"
   (spaceship-clear-region-properties
-   start end 'spaceship-adjusted '(spaceship-adjusted display)))
+   start end 'spaceship-adjusted '(spaceship-adjusted spaceship-width display)))
 
 (defun spaceship-clear-buffer ()
   (spaceship-clear-region (point-min) (point-max)))
