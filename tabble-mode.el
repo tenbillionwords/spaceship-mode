@@ -19,7 +19,7 @@
 ;;; Terminology: a tab after a printing char on a line is a “tabble tab” and a
 ;;; line which has one is a “tabble line”.  A sequence of one or more
 ;;; consecutive lines which have tabble tabs is a single “tabble”.  See also the
-;;; terminology note in spacious-mode.el
+;;; terminology note in spaceship-mode.el
 
 (require 'cl-lib)
 (require 'spaceship-mode)
