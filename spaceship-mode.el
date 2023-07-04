@@ -219,12 +219,10 @@ with START and continuing to the next safe line."
     (save-excursion
       (goto-char start)
       ;; we assume the first line does not need to be processed
-      (let ((prev-line-start)
-            prev-line-end
+      (let ((prev-line-start (line-beginning-position))
+            (prev-line-end (line-end-position))
             cur-line-start cur-line-end
             char candidate candidate-pos)
-        (setq prev-line-start (line-beginning-position))
-        (setq prev-line-end (line-end-position))
         (forward-line)
         ;; loop over lines
         (while (not (or (eobp) ; in case buffer ended without newline
@@ -250,12 +248,10 @@ with START and continuing to the next safe line."
                    ;; adjust width
                    (when (eql char ?\s)
                      (let ((w (spaceship-char-pixel-width candidate-pos)))
-                       (put-text-property (point) (+ (point) 1)
-                                          'display (list 'space :width (list w)))
-                       (put-text-property (point) (+ (point) 1)
-                                          'spaceship-adjusted t)
-                       (put-text-property (point) (+ (point) 1)
-                                          'spaceship-width w)))
+                       (add-text-properties (point) (1+ (point))
+                                            (list 'display (list 'space :width (list w))
+                                                  'spaceship-adjusted t
+                                                  'spaceship-width w))))
                    ;; advance
                    (forward-char))
           (setq prev-line-start cur-line-start)
