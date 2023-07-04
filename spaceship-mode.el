@@ -33,12 +33,14 @@
 ;;; Code:
 
 (defcustom spaceship-tab-pixel-width 20
-  "‘spaceship-mode’ will adjust all leading-space tabs to have this width.")
+  "‘spaceship-mode’ will adjust all leading-space tabs to have this width."
+  :type 'int :group 'spaceship)
 
 (defcustom spaceship-auto-preserve nil
   "Whether ‘spaceship-mode’ should attempt to preserve the alignment of blocks
 of code or text aligned to a line when that line is edited before the point of
-alignment.")
+alignment."
+  :type 'boolean :group 'spaceship)
 
 (define-minor-mode spaceship-mode
   "Automatically adjust width of space characters in certain places to allow
@@ -208,7 +210,7 @@ END such that CUE-PROP is t."
                 (* not-newline)))
       line-end)
   "Regexp to test whether a line is a safe starting point for the adjustments of
-spaceship-mode, meaning it has no leading-space spaces.")
+`spaceship-mode', meaning it has no leading-space spaces.")
 
 (defun spaceship-do (start)
   "Adjust width of leading-space spaces in current buffer starting at the line
