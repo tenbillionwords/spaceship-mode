@@ -94,13 +94,13 @@ can run ‘spaceship-do-buffer’ to fix it."
   "Display pixel width of region text in minibuffer (debug utility for
 spaceship-mode)"
   (interactive "r")
-  (message "pixel width of region: %s dbg %s, prop %s"
+  (message "pixel width of region: %s dbg %s"
            (car (window-text-pixel-size nil start end))
            (spaceship-text-pixel-width start end)))
 
 (defun spaceship-show-char-pixel-width (pos)
   "Display pixel width of region char at POS .
-(debug utility for spaceship-mode)"
+(debug utility for `spaceship-mode')"
   (interactive "d")
   (message "pixel width of region: %s, raw=%s, disp=%s, prop=%s"
            (spaceship-char-pixel-width pos)
