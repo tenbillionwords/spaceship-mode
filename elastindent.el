@@ -17,8 +17,7 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-(require 'cl-lib)
-(require 'dash)
+;;; Commentary:
 
 ;;; General terminological note: elastindent-mode is concerned with
 ;;; adjusting the width of only spaces and tabs which occur before a
@@ -26,15 +25,18 @@
 ;;; “indentation” to refer to these tabs or spaces.  It is ambiguous
 ;;; whether Unicode space characters other than space and (horizontal)
 ;;; tab should be considered part of the leading space or not, but in
-;;; the code we assume it is only spaces and tabs. Thus
+;;; the code we assume it is only spaces and tabs.  Thus
 ;;; elastindent-mode treats other space characters as printing
 ;;; characters.
 
 ;;; Code:
 
+(require 'cl-lib)
+(require 'dash)
+
 (define-minor-mode elastindent-mode
   "Improves indentation with in variable-pitch face.
- Adjust the width of indentation characters to align the indented
+Adjust the width of indentation characters to align the indented
 code to the correct position.  The correct position is defined as
 the same relative position to the previous line as it were if a
 fixed-pitch face was used.
@@ -126,6 +128,7 @@ If so, then it is a safe starting point for the adjustments of
 `elastindent-mode'.")
 
 (defun elastindent-set-char-pixel-width (pos w)
+  ""
   (add-text-properties pos (1+ pos)
                        (list 'display (list 'space :width (list w))
                              'elastindent-adjusted t
@@ -142,10 +145,11 @@ If so, then it is a safe starting point for the adjustments of
       (when (<= 0 target) (forward-char)))
     (not (looking-at (rx (any "\s\t"))))))
 
-(defun elastindent-do (start-col)
+(defun elastindent-do (start-col change-end)
   "Adjust width of indentation in starting at point.
-Continue until a safe line is encountered, and return its
-position."
+Continue until a safe line after CHANGE-END is encountered, and return its
+position.
+Safe line is determined by START-COL."
   (with-silent-modifications
     (let (prev-widths ; the list of widths of each *column* of indentation of the previous line
           (reference-pos 0) ; the buffer position in the previous line of 1st printable char
@@ -153,8 +157,9 @@ position."
           space-widths) ; accumulated widths of columns for current line
       ;; (message "elastindent-do: %s" (point))
       ;; try to find reference position in the previous line. if it cannot be found use trivial values.
-      (save-excursion (when (eq (forward-line -1) 0)
-          	        (setq prev-line-end (line-end-position))
+      (save-excursion
+        (when (eq (forward-line -1) 0)
+          (setq prev-line-end (line-end-position))
           (setq reference-pos (save-excursion (move-to-column start-col) (point)))))
       ;; (message "ready %s %s %s" (point) reference-pos prev-line-end)
       (cl-flet ((get-next-column-width ()
@@ -166,8 +171,9 @@ position."
                     w)))
         (beginning-of-line)
         (while (and (not (eobp))
-                    (not (elastindent-column-leaves-indent start-col)))
-          ;; (message "line loop: %s => %s %s" reference-pos (point) prev-widths)
+                    (or (not (elastindent-column-leaves-indent start-col))
+                        (< (line-beginning-position) change-end))); if there is a change in the current line, keep going.
+          (message "line loop: %s => %s %s" reference-pos (point) prev-widths)
           ;; loop over chars
           (while-let ((cur-line-ended-c (not (eolp)))
                       (char (char-after))
@@ -183,48 +189,18 @@ position."
           (setq reference-pos (point))
           (forward-line))))))
 
-;; TODO: instead of safe line: consider the lowest column at which a change was made.
-;; return start of a safe line (or first line) before or including pos
-(defun elastindent-find-safe-start (pos)
-  "Start of a safe line (or first line) before or including POS."
-  (save-excursion
-    (goto-char pos)
-    (beginning-of-line)
-    (if (looking-at elastindent-safe-line-regexp)
-        (point)
-      (or (re-search-backward elastindent-safe-line-regexp nil t)
-          (point-min)))))
-
-;; return end of a safe line (or last line) after and *excluding* pos.  this one
-;; is exclusive because the after-change-function needs to consider the
-;; possibility that a line that looks safe now still needs to be re-processed
-;; because it has old adjustments that were spoiled by changes in the previous
-;; line
-(defun elastindent-find-safe-end (pos)
-  "Return end of a safe line (or last line) after and excluding POS."
-  (save-excursion
-    (goto-char pos)
-    (forward-line)
-    (or (re-search-forward elastindent-safe-line-regexp nil t)
-        (point-max))))
-
 (defun elastindent-do-region (start end)
   "Adjust width of all indentation spaces and tabs in given region.
 The region is between START and END in current buffer"
   (interactive "r")
   (elastindent-with-suitable-window
     (save-excursion
-      (elastindent-clear-region start end)
+      (elastindent-clear-region start end) ; ???
       (goto-char start)
-    (let ((col (if (> end (line-end-position)) 0
-                 (current-column))))
-      (beginning-of-line)
-      (message "do-region %s-%s (%s)" start end col)
-      (while (and (< (point) end) (not (eobp)))
-        (while (and (< (point) end) (not (eobp))
-                    (elastindent-column-leaves-indent col))
-          (forward-line))
-        (elastindent-do col))))))
+      (let ((col (if (> end (line-end-position)) 0
+                   (current-column))))
+        (beginning-of-line)
+        (elastindent-do col end)))))
 
 (defun elastindent-do-buffer ()
   "Adjust width of all indentation spaces and tabs in current buffer."
