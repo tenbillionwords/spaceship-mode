@@ -131,51 +131,57 @@ If so, then it is a safe starting point for the adjustments of
                              'elastindent-adjusted t
                              'elastindent-width w)))
 
-(defun elastindent-do (start)
-  "Adjust width of indentation in starting at START.
+(defun elastindent-column-leaves-indent (target)
+  "Return t if by advancing TARGET columns one reaches the end of the indentation."
+  (let ((col 0))
+    (while (and (not (eobp)) (< col target))
+      (pcase (char-after)
+        (?\s (setq col (1+ col)))
+        (?\t (setq col (+ 8 col)))
+        (_ (setq target -1)))
+      (when (<= 0 target) (forward-char)))
+    (not (looking-at (rx (any "\s\t"))))))
+
+(defun elastindent-do (start-col)
+  "Adjust width of indentation in starting at point.
 Continue until a safe line is encountered, and return its
-position.  START is assumed to be a line start position with no
-indentation."
+position."
   (with-silent-modifications
-    (save-excursion
-      (goto-char start)
-      (let (prev-widths ; the list of width of each *column* of indentation of the previous line, as a list.
-            (reference-pos  ; the buffer position in the previous line of 1st printable char
-             (line-beginning-position)) ; no indent on 1st line
-            (prev-line-end (line-end-position)); end position of previous line
-            space-widths) ; accumulated widths of columns for current line
-        (cl-flet ((get-next-column-width ()
-                    (let ((w (if prev-widths (pop prev-widths) ; we have a cached width: use it.
-                               (if (>= reference-pos prev-line-end) 20 ; arbitrary: TODO: fix
-                                 (prog1 (elastindent-char-pixel-width reference-pos)
-                                   (setq reference-pos (1+ reference-pos)))))))
-                      (push w space-widths)
-                      w)))
-          (while (and (not (eobp)); in case buffer ended without newline
-                      (forward-line) ; jump to beginning of next line...
-                      (not (looking-at elastindent-safe-line-regexp)))
-            ;; (message "line loop: %s, %s" (point) prev-widths)
-            ;; loop over chars
-            (while-let ((cur-line-ended-c (not (eolp)))
-                        (char (char-after))
-                        (char-is-indent-c (or (eql char ?\s) (eql char ?\t))))
-              (cond
-               ((eql char ?\s)
-                (elastindent-set-char-pixel-width (point) (get-next-column-width)))
-               ((eql char ?\t)
-                (elastindent-set-char-pixel-width
-                 (point) (-sum (--map (get-next-column-width) (-repeat tab-width ()))))))
-              ;; advance
-              (forward-char))
-            (setq prev-widths (reverse space-widths))
-            (setq space-widths nil)
-            (setq prev-line-end (line-end-position))
-            (setq reference-pos (point)))))
-      ;; return start of first line we did not process, which is guaranteed to
-      ;; have no matching chars (so may be passed back to this function).  if
-      ;; we processed all lines in buffer, this will be end of buffer (not
-      ;; necessarily start of line)
-      (point))))
+    (let (prev-widths ; the list of widths of each *column* of indentation of the previous line
+          (reference-pos 0) ; the buffer position in the previous line of 1st printable char
+          (prev-line-end -1); end position of previous line
+          space-widths) ; accumulated widths of columns for current line
+      ;; (message "elastindent-do: %s" (point))
+      ;; try to find reference position in the previous line. if it cannot be found use trivial values.
+      (save-excursion (when (eq (forward-line -1) 0)
+          	        (setq prev-line-end (line-end-position))
+          (setq reference-pos (save-excursion (move-to-column start-col) (point)))))
+      ;; (message "ready %s %s %s" (point) reference-pos prev-line-end)
+      (cl-flet ((get-next-column-width ()
+                  (let ((w (if prev-widths (pop prev-widths) ; we have a cached width: use it.
+                             (if (>= reference-pos prev-line-end) 20 ; arbitrary: TODO: fix
+                               (prog1 (elastindent-char-pixel-width reference-pos)
+                                 (setq reference-pos (1+ reference-pos)))))))
+                    (push w space-widths)
+                    w)))
+        (beginning-of-line)
+        (while (and (not (eobp))
+                    (not (elastindent-column-leaves-indent start-col)))
+          ;; (message "line loop: %s => %s %s" reference-pos (point) prev-widths)
+          ;; loop over chars
+          (while-let ((cur-line-ended-c (not (eolp)))
+                      (char (char-after))
+                      (char-is-indent-c (or (eql char ?\s) (eql char ?\t))))
+            (pcase char
+              (?\s (elastindent-set-char-pixel-width (point) (get-next-column-width)))
+              (?\t (elastindent-set-char-pixel-width
+                    (point) (-sum (--map (get-next-column-width) (-repeat tab-width ()))))))
+            (forward-char))
+          (setq prev-widths (reverse space-widths))
+          (setq space-widths nil)
+          (setq prev-line-end (line-end-position))
+          (setq reference-pos (point))
+          (forward-line))))))
 
 ;; TODO: instead of safe line: consider the lowest column at which a change was made.
 ;; return start of a safe line (or first line) before or including pos
@@ -207,12 +213,18 @@ indentation."
 The region is between START and END in current buffer"
   (interactive "r")
   (elastindent-with-suitable-window
-    (let* ((start (elastindent-find-safe-start start))
-           (end (elastindent-find-safe-end end))
-           (pos start))
+    (save-excursion
       (elastindent-clear-region start end)
-      (while (and pos (< pos end))
-        (setq pos (elastindent-do pos))))))
+      (goto-char start)
+    (let ((col (if (> end (line-end-position)) 0
+                 (current-column))))
+      (beginning-of-line)
+      (message "do-region %s-%s (%s)" start end col)
+      (while (and (< (point) end) (not (eobp)))
+        (while (and (< (point) end) (not (eobp))
+                    (elastindent-column-leaves-indent col))
+          (forward-line))
+        (elastindent-do col))))))
 
 (defun elastindent-do-buffer ()
   "Adjust width of all indentation spaces and tabs in current buffer."
@@ -226,8 +238,8 @@ The region is between START and END in current buffer"
    start end 'elastindent-adjusted '(elastindent-adjusted elastindent-width display)))
 
 (defun elastindent-clear-buffer ()
-  (interactive)
   "Remove all `elastindent-mode' properties in buffer."
+  (interactive)
   (elastindent-clear-region (point-min) (point-max)))
 
 (defmacro elastindent-with-reported-errors (name &rest body)
@@ -249,6 +261,7 @@ safety feature."
 
 (defun elastindent-after-change-function (start end _len)
   (save-match-data
+    (message "elastindent-after-change-function!")
     (elastindent-do-region start end)))
 
 (provide 'elastindent-mode)
