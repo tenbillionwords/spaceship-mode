@@ -152,6 +152,15 @@ by what."
       (when (<= 0 target) (forward-char)))
     (not (looking-at (rx (any "\s\t"))))))
 
+(defun elastindent-in-indent ()
+  "Return t iff all characters to the left are indentation chars."
+  (save-excursion
+    (while (and (not (bolp))
+            (pcase (char-before)
+             ((or ?\s ?\t) (or (backward-char 1) t)))))
+    (bolp)))
+      
+
 (defun elastindent-do (start-col change-end)
   "Adjust width of indentations.
 This is in response to a change starting at point and ending at
@@ -170,40 +179,48 @@ which can be much further down the file."
           (reference-pos 0) ; the buffer position in the previous line of 1st printable char
           (prev-line-end -1); end position of previous line
           space-widths) ; accumulated widths of columns for current line
-      ;; (message "elastindent-do: %s" (point))
-      ;; try to find reference position in the previous line. if it cannot be found use trivial values.
+      (message "elastindent-do: %s [%s, %s]" start-col (point) change-end)
+      ;; (message "ready %s %s %s" (point) reference-pos prev-line-end)
+      (cl-flet* ((get-next-column-width () ; find reference width in the previous line. (effectful)
+                  (let ((w (if prev-widths (pop prev-widths) ; we have a cached width: use it.
+                              (if (>= reference-pos prev-line-end) elastindent-reference-col-width
+                                (prog1 (elastindent-char-pixel-width reference-pos)
+                                  (setq reference-pos (1+ reference-pos)))))))
+                     (push w space-widths) ; cache width for next line
+                     w))
+                 (char-loop () ; copy width from reference-pos to (point) to end of indentation.
+                   ;; Precondition: cur col = start-col.  Possibly cached widths in prev-widths
+                   ;; (message "%s=>%s %s" reference-pos (point) prev-widths)
+                   (while-let ((cur-line-not-ended-c (not (eolp)))
+                               (char (char-after))
+                               (char-is-indent-c (or (eql char ?\s) (eql char ?\t))))
+                     (pcase char
+                       (?\s (elastindent-set-char-pixel-width (point) (get-next-column-width)))
+                       (?\t (elastindent-set-char-pixel-width
+                             (point) (-sum (--map (get-next-column-width) (-repeat tab-width ()))))))
+                     (forward-char)))
+                 (next-line () ; advance to next line, maintaining state.
+                   (setq prev-widths (reverse space-widths))
+                   (setq space-widths nil)
+                   (setq prev-line-end (line-end-position))
+                   (setq reference-pos (point))
+                   (forward-line)))
       (save-excursion
         (when (eq (forward-line -1) 0)
           (setq prev-line-end (line-end-position))
           (setq reference-pos (save-excursion (move-to-column start-col) (point)))))
-      ;; (message "ready %s %s %s" (point) reference-pos prev-line-end)
-      (cl-flet ((get-next-column-width ()
-                  (let ((w (if prev-widths (pop prev-widths) ; we have a cached width: use it.
-                             (if (>= reference-pos prev-line-end) elastindent-reference-col-width
-                               (prog1 (elastindent-char-pixel-width reference-pos)
-                                 (setq reference-pos (1+ reference-pos)))))))
-                    (push w space-widths) ; cache width for next line
-                    w)))
-        (beginning-of-line)
-        ;; loop through lines.
-        (while (and (not (eobp))
-                    (or (not (elastindent-column-leaves-indent start-col))
-                        (< (line-beginning-position) change-end))); if there is a change in the current line, keep going.
-          ;; (message "line loop: %s => %s %s" reference-pos (point) prev-widths)
-          ;; loop through chars
-          (while-let ((cur-line-not-ended-c (not (eolp)))
-                      (char (char-after))
-                      (char-is-indent-c (or (eql char ?\s) (eql char ?\t))))
-            (pcase char
-              (?\s (elastindent-set-char-pixel-width (point) (get-next-column-width)))
-              (?\t (elastindent-set-char-pixel-width
-                    (point) (-sum (--map (get-next-column-width) (-repeat tab-width ()))))))
-            (forward-char))
-          (setq prev-widths (reverse space-widths))
-          (setq space-widths nil)
-          (setq prev-line-end (line-end-position))
-          (setq reference-pos (point))
-          (forward-line))))))
+      ;; first line: point already at start-col
+      (when (elastindent-in-indent)
+        (char-loop)) ; if not characters are not to be changed.
+      (next-line)
+      ;; then: update lines before change-end if their indentation is large enough.
+      (while (< prev-line-end change-end)
+        (unless (elastindent-column-leaves-indent start-col) (char-loop))
+        (next-line))
+      ;; finally: propagate changes and stop if indentation is too small.
+      (while (not (elastindent-column-leaves-indent start-col))
+        (char-loop)
+        (next-line))))))
 
 (defun elastindent-do-region (start end)
   "Adjust width of indentation characters in given region and propagate.
@@ -219,7 +236,6 @@ in given region."
       (goto-char start)
       (let ((col (if (> end (line-end-position)) 0
                    (current-column))))
-        (beginning-of-line)
         (elastindent-do col end)))))
 
 (defun elastindent-do-buffer ()
