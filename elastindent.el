@@ -1,6 +1,4 @@
-;; -*- lexical-binding: t; -*-
-
-;; elastindent-mode and tabble-mode
+;; elastindent-mode  --- fix indentation with variable-pitch fonts. -*- lexical-binding: t; -*-
 ;; Copyright (C) 2021 Scott Messick (tenbillionwords)
 ;; Copyright (C) 2023 Jean-Philippe Bernardy
 
@@ -28,6 +26,9 @@
 ;;; the code we assume it is only spaces and tabs.  Thus
 ;;; elastindent-mode treats other space characters as printing
 ;;; characters.
+;;; The support for tabs is currently limited.  Tabs can only be first
+;;; in the indentation (they cannot follows spaces).  Editting code
+;;; with tabs isn't fully supported either.
 
 ;;; Code:
 
@@ -41,14 +42,16 @@ code to the correct position.  The correct position is defined as
 the same relative position to the previous line as it were if a
 fixed-pitch face was used.
 
-More precisely, any space character on a line with no printing characters before
-it will be matched up with a corresponding character on the previous line, if
-there is one.  That character may itself be a width-adjusted space, meaning the
-width ultimately comes from some other kind of character higher up.
+More precisely, any space character on a line with no printing
+characters before it will be matched up with a corresponding
+character on the previous line, if there is one.  That character
+may itself be a width-adjusted space, meaning the width
+ultimately comes from some other kind of character higher up.
 
-Due to technical limitations, this mode does not try to detect situations where
-the font has changed but the text hasn't, which will mess up the alignment.  You
-can run ‘elastindent-do-buffer’ to fix it."
+Due to technical limitations, this mode does not try to detect
+situations where the font has changed but the text hasn't, which
+will mess up the alignment.  You can run
+‘elastindent-do-buffer-if-enabled’ to fix it."
   :init-value nil :lighter nil :global nil
   (if elastindent-mode
       (progn
@@ -63,12 +66,23 @@ can run ‘elastindent-do-buffer’ to fix it."
       (remove-hook 'text-scale-mode-hook 'elastindent-do-buffer t)
       (elastindent-clear-buffer))))
 
+(defcustom elastindent-reference-col-width 10
+  "Default width of a column (space character) in pixels.
+When setting the width of a space character after the end of the
+previous line, there is no column to align to.  In this case, the
+width of the column will be set to.
+`elastindent-reference-col-width'."
+  :type 'int :group 'elastindent)
+
 (defun elastindent-char-pixel-width (pos)
   "Return the pixel width of char at POS."
   (if-let (p (get-char-property pos 'elastindent-width))
       p
     (let ((c (car (window-text-pixel-size nil pos (1+ pos)))))
-      (if (> c 2) c ;; Emacs bug: sometimes the returned window-text-pixel-size is negative. In this case computing it indirectly like below seems to fix the issue.
+      (if (> c 2) c
+        ;; Emacs bug: sometimes the returned window-text-pixel-size is
+        ;; negative. In this case computing it indirectly like below
+        ;; seems to fix the issue.
         (- (car (window-text-pixel-size nil (1- pos) (1+ pos)))
            (car (window-text-pixel-size nil (1- pos) pos)))))))
 
@@ -112,23 +126,16 @@ text property CUE-PROP be t."
     (cl-do ((pos1 start) pos2) (nil)
       (setq pos1 (text-property-any pos1 end cue-prop t))
       (unless pos1 (cl-return))
-      (setq pos2 (or (next-single-property-change
-                      pos1 cue-prop nil end)
+      (setq pos2 (or (next-single-property-change pos1 cue-prop nil end)
                      end))
       (remove-list-of-text-properties pos1 pos2 props-to-remove)
       (setq pos1 pos2))))
 
-(defconst elastindent-safe-line-regexp
-  (rx line-start (* "\t")
-      (? (group (not (any "\s\t\n"))
-                (* not-newline)))
-      line-end)
-  "Regexp to test if a line has no indentation spaces.
-If so, then it is a safe starting point for the adjustments of
-`elastindent-mode'.")
-
 (defun elastindent-set-char-pixel-width (pos w)
-  ""
+  "Set the width of character at POS to be W.
+This only works if the character in question is a space or a tab.
+Also add text properties to remember that we did this change and
+by what."
   (add-text-properties pos (1+ pos)
                        (list 'display (list 'space :width (list w))
                              'elastindent-adjusted t
@@ -146,10 +153,18 @@ If so, then it is a safe starting point for the adjustments of
     (not (looking-at (rx (any "\s\t"))))))
 
 (defun elastindent-do (start-col change-end)
-  "Adjust width of indentation in starting at point.
-Continue until a safe line after CHANGE-END is encountered, and return its
-position.
-Safe line is determined by START-COL."
+  "Adjust width of indentations.
+This is in response to a change starting at point and ending at
+CHANGE-END.  START-COL is the minimum column where a change
+occured.  Start at point and continue until line which cannot be
+impacted by the change is found.  Such a line occurs if its
+indentation level is less than START-COL and starts after
+CHANGE-END.
+
+Thus a large value of START-COL means that little work needs to
+be done by this function.  This optimisation is important,
+because otherwise one needs to find a line with zero indentation,
+which can be much further down the file."
   (with-silent-modifications
     (let (prev-widths ; the list of widths of each *column* of indentation of the previous line
           (reference-pos 0) ; the buffer position in the previous line of 1st printable char
@@ -164,18 +179,19 @@ Safe line is determined by START-COL."
       ;; (message "ready %s %s %s" (point) reference-pos prev-line-end)
       (cl-flet ((get-next-column-width ()
                   (let ((w (if prev-widths (pop prev-widths) ; we have a cached width: use it.
-                             (if (>= reference-pos prev-line-end) 20 ; arbitrary: TODO: fix
+                             (if (>= reference-pos prev-line-end) elastindent-reference-col-width
                                (prog1 (elastindent-char-pixel-width reference-pos)
                                  (setq reference-pos (1+ reference-pos)))))))
-                    (push w space-widths)
+                    (push w space-widths) ; cache width for next line
                     w)))
         (beginning-of-line)
+        ;; loop through lines.
         (while (and (not (eobp))
                     (or (not (elastindent-column-leaves-indent start-col))
                         (< (line-beginning-position) change-end))); if there is a change in the current line, keep going.
           ;; (message "line loop: %s => %s %s" reference-pos (point) prev-widths)
-          ;; loop over chars
-          (while-let ((cur-line-ended-c (not (eolp)))
+          ;; loop through chars
+          (while-let ((cur-line-not-ended-c (not (eolp)))
                       (char (char-after))
                       (char-is-indent-c (or (eql char ?\s) (eql char ?\t))))
             (pcase char
@@ -190,12 +206,16 @@ Safe line is determined by START-COL."
           (forward-line))))))
 
 (defun elastindent-do-region (start end)
-  "Adjust width of all indentation spaces and tabs in given region.
-The region is between START and END in current buffer"
+  "Adjust width of indentation characters in given region and propagate.
+The region is between START and END in current buffer.
+Propagation means to also fix the indentation of the lines which
+follow, if their indentation widths might be impacted by changes
+in given region."
   (interactive "r")
   (elastindent-with-suitable-window
     (save-excursion
-      (elastindent-clear-region start end) ; ???
+      ;; for some reason clearing is necessary for fill-paragraph.
+      (elastindent-clear-region start end)
       (goto-char start)
       (let ((col (if (> end (line-end-position)) 0
                    (current-column))))
@@ -223,26 +243,9 @@ The region is between START and END in current buffer"
   (interactive)
   (elastindent-clear-region (point-min) (point-max)))
 
-(defmacro elastindent-with-reported-errors (name &rest body)
-  "Execute BODY, trapping and reporting any errors which occur.
-This is a debugging utility for `elastindent-mode' and
-`tabble-mode', which catches errors and shows a message prefixed
-with NAME.  It's really annoying when even a single error in an
-after-change or before-change function causes everything to
-immediately stop functioning.  I have removed calls to this macro
-from the public release because it circumvents a well-conceived
-safety feature."
-  (declare (indent 1))
-  (let ((err (make-symbol "error")))
-    `(condition-case ,err
-         (progn ,@body)
-       (error (message "%s: trapped error during execution:\n%s"
-                       ,name
-                       (error-message-string ,err))))))
-
 (defun elastindent-after-change-function (start end _len)
-  (save-match-data
-    ;; (message "elastindent-after-change-function!")
-    (elastindent-do-region start end)))
+  "Call `elastindent-do-region' for START and END."
+  (save-match-data (elastindent-do-region start end)))
 
-(provide 'elastindent-mode)
+(provide 'elastindent)
+;;; elastindent.el ends here
