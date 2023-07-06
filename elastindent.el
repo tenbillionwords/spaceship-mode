@@ -173,7 +173,7 @@ Safe line is determined by START-COL."
         (while (and (not (eobp))
                     (or (not (elastindent-column-leaves-indent start-col))
                         (< (line-beginning-position) change-end))); if there is a change in the current line, keep going.
-          (message "line loop: %s => %s %s" reference-pos (point) prev-widths)
+          ;; (message "line loop: %s => %s %s" reference-pos (point) prev-widths)
           ;; loop over chars
           (while-let ((cur-line-ended-c (not (eolp)))
                       (char (char-after))
@@ -207,6 +207,11 @@ The region is between START and END in current buffer"
   (interactive)
   (elastindent-do-region (point-min) (point-max)))
 
+(defun elastindent-do-buffer-if-enabled ()
+  "Call `elastindent-do-buffer' if `elastindent-mode' is enabled."
+  (interactive)
+  (when 'elastindent-mode (elastindent-do-buffer)))
+
 (defun elastindent-clear-region (start end)
   "Remove all `elastindent-mode' properties between START and END."
   (interactive "r")
@@ -237,7 +242,7 @@ safety feature."
 
 (defun elastindent-after-change-function (start end _len)
   (save-match-data
-    (message "elastindent-after-change-function!")
+    ;; (message "elastindent-after-change-function!")
     (elastindent-do-region start end)))
 
 (provide 'elastindent-mode)

@@ -219,6 +219,11 @@ in current buffer."
   (interactive)
   (tabble-do-region (point-min) (point-max)))
 
+(defun tabble-do-buffer-if-enabled ()
+  "Call `tabble-do-buffer' if `tabble-mode' is enabled."
+  (interactive)
+  (when 'tabble-mode (tabble-do-buffer)))
+
 ;; this should happen *after* the spaceship change function, because we may need
 ;; to know spaceship adjusted space widths in calculating our column widths (but
 ;; there is no dependency the other way)
