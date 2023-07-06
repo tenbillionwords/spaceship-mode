@@ -151,6 +151,13 @@ calculating the correct widths needed to align the columns."
       (push cells (tabble-rows the-tabble))
       )))
 
+(defface tabble-column-separator-face '((t)) "Face of column separators in a tabble.")
+
+(defun tabble-cursor-sensor (window pos action)
+  (if (eq action 'entered)
+      (face-spec-set 'tabble-column-separator-face '((t (:box (:line-width (-1 . 0))))))
+      (face-spec-set 'tabble-column-separator-face '((t )))))
+
 (defun tabble-propertize (the-tabble)
   (with-silent-modifications
     (dolist (row (tabble-rows the-tabble))
@@ -161,15 +168,16 @@ calculating the correct widths needed to align the columns."
        ;; avoid propertizing newline after last cell
        when (equal (char-after pos) ?\t)
        do (progn
-            (put-text-property
-             pos (+ pos 1) 'display
-             (list 'space :width
-                   (list (- (+ (aref (tabble-max-widths the-tabble) col)
-                               tabble-column-minimum-margin)
-                            (tabble-cell-width cell)))))
-            (put-text-property
-             pos (+ pos 1) 'tabble-adjusted
-             t))))))
+            (add-text-properties
+             pos (1+ pos)
+             (list 'display
+                   (list 'space :width
+                         (list (- (+ (aref (tabble-max-widths the-tabble) col)
+                                     tabble-column-minimum-margin)
+                                  (tabble-cell-width cell))))
+                   'font-lock-face 'tabble-column-separator-face
+                   'cursor-sensor-functions (list 'tabble-cursor-sensor)
+                   'tabble-adjusted t)))))))
 
 ;; return start of a non-tabble line entirely before pos, if possible, or
 ;; beginning of buffer otherwise.  we need to see a non-tabble line to be safe in
