@@ -179,8 +179,7 @@ which can be much further down the file."
           (reference-pos 0) ; the buffer position in the previous line of 1st printable char
           (prev-line-end -1); end position of previous line
           space-widths) ; accumulated widths of columns for current line
-      (message "elastindent-do: %s [%s, %s]" start-col (point) change-end)
-      ;; (message "ready %s %s %s" (point) reference-pos prev-line-end)
+      ;; (message "elastindent-do: %s [%s, %s]" start-col (point) change-end)
       (cl-flet* ((get-next-column-width () ; find reference width in the previous line. (effectful)
                   (let ((w (if prev-widths (pop prev-widths) ; we have a cached width: use it.
                               (if (>= reference-pos prev-line-end) elastindent-reference-col-width
