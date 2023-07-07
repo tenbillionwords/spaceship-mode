@@ -177,7 +177,8 @@ which can be much further down the file."
   (with-silent-modifications
     (let (prev-widths ; the list of widths of each *column* of indentation of the previous line
           (reference-pos 0) ; the buffer position in the previous line of 1st printable char
-          (prev-line-end -1); end position of previous line
+          (prev-reference-pos)
+          (prev-line-end -1); end position of previous line ; TODO: don't use this.
           space-widths) ; accumulated widths of columns for current line
       ;; (message "elastindent-do: %s [%s, %s]" start-col (point) change-end)
       (cl-flet* ((get-next-column-width () ; find reference width in the previous line. (effectful)
@@ -190,6 +191,7 @@ which can be much further down the file."
                  (char-loop () ; copy width from reference-pos to (point) to end of indentation.
                    ;; Precondition: cur col = start-col.  Possibly cached widths in prev-widths
                    ;; (message "%s=>%s %s" reference-pos (point) prev-widths)
+                   (setq prev-reference-pos (point))
                    (while-let ((cur-line-not-ended-c (not (eolp)))
                                (char (char-after))
                                (char-is-indent-c (or (eql char ?\s) (eql char ?\t))))
@@ -202,7 +204,7 @@ which can be much further down the file."
                    (setq prev-widths (reverse space-widths))
                    (setq space-widths nil)
                    (setq prev-line-end (line-end-position))
-                   (setq reference-pos (point))
+                   (setq reference-pos prev-reference-pos)
                    (forward-line)))
       (save-excursion
         (when (eq (forward-line -1) 0)
