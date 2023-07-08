@@ -158,7 +158,6 @@ by what."
             (pcase (char-before)
              ((or ?\s ?\t) (or (backward-char 1) t)))))
     (bolp)))
-      
 
 (defun elastindent-do (start-col change-end)
   "Adjust width of indentations.
@@ -177,7 +176,7 @@ which can be much further down the file."
     (let (prev-widths ; the list of widths of each *column* of indentation of the previous line
           (reference-pos 0) ; the buffer position in the previous line of 1st printable char
           space-widths) ; accumulated widths of columns for current line
-      (message "elastindent-do: %s [%s, %s]" start-col (point) change-end)
+      ;; (message "elastindent-do: %s [%s, %s]" start-col (point) change-end)
       (cl-flet* ((get-next-column-width () ; find reference width in the previous line. (effectful)
                    (let ((w (if prev-widths (pop prev-widths) ; we have a cached width: use it.
                               (if (eql (char-after reference-pos) ?\n) elastindent-reference-col-width
