@@ -204,8 +204,8 @@ which can be much further down the file."
                    (forward-line)))
         (save-excursion
           (when (eq (forward-line -1) 0)
-            (setq reference-pos (save-excursion (move-to-column start-col) (point)))))
-        ;; (message "%s: first line. update from col=%s" (line-number-at-pos) (current-column))
+            (setq reference-pos (progn (move-to-column start-col) (point)))))
+        ;; (message "%s: first line. update from startcol=%s curcol=%s" (line-number-at-pos) start-col (current-column))
         (when (elastindent-in-indent)
           (char-loop)) ; if not characters are not to be changed.
         (next-line)
@@ -235,9 +235,7 @@ in given region."
       ;; for some reason clearing is necessary for fill-paragraph.
       (elastindent-clear-region start end)
       (goto-char start)
-      (let ((col (if (> end (line-end-position)) 0
-                   (current-column))))
-        (elastindent-do col end)))))
+      (elastindent-do (current-column) end))))
 
 (defun elastindent-do-buffer ()
   "Adjust width of all indentation spaces and tabs in current buffer."
