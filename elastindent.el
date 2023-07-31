@@ -35,6 +35,15 @@
 (require 'cl-lib)
 (require 'dash)
 
+(defun elastindent-mode-maybe ()
+  "Function to put in hooks, for example `prog-mode-hook'."
+  ;; See org-src-font-lock-fontify-block for buffer name.  Elastindent
+  ;; isn't needed in fontification buffers. Fontification is called on
+  ;; every keystroke (‽). Calling elastindent-do-buffer on each
+  ;; keystroke on the whole block is very slow.
+  (unless (string-prefix-p " *org-src-fontification:" (buffer-name))
+    (elastindent-mode)))
+
 (define-minor-mode elastindent-mode
   "Improves indentation with in variable-pitch face.
 Adjust the width of indentation characters to align the indented
@@ -55,6 +64,7 @@ will mess up the alignment.  You can run
   :init-value nil :lighter nil :global nil
   (if elastindent-mode
       (progn
+        (message "activating elastindent in %s" (buffer-name))
         (elastindent-do-buffer)
         ;; add change function to beginning of list, to ensure it comes before that of
         ;; tabble
@@ -73,17 +83,25 @@ width of the column will be set to.
 `elastindent-reference-col-width'."
   :type 'int :group 'elastindent)
 
+(defun elastindent-on-col-2 (pos)
+  (save-excursion
+    (goto-char pos)
+    (and (not (bolp)))
+    (progn (forward-char -1) (bolp))))
+
 (defun elastindent-char-pixel-width (pos)
   "Return the pixel width of char at POS."
   (if-let (p (get-char-property pos 'elastindent-width))
       p
+    ;; Emacs bug: sometimes the returned window-text-pixel-size is
+    ;; wrong. In this case computing it indirectly like below
+    ;; seems to fix the issue.
     (let ((c (car (window-text-pixel-size nil pos (1+ pos)))))
-      (if (> c 2) c
-        ;; Emacs bug: sometimes the returned window-text-pixel-size is
-        ;; negative. In this case computing it indirectly like below
-        ;; seems to fix the issue.
+      (if (or (<= c 1) ; suspicious
+              (elastindent-on-col-2 pos)) ; emacs is often wrong on that column, for some reason.
         (- (car (window-text-pixel-size nil (1- pos) (1+ pos)))
-           (car (window-text-pixel-size nil (1- pos) pos)))))))
+           (car (window-text-pixel-size nil (1- pos) pos)))
+        c))))
 
 (defun elastindent-show-char-pixel-width (pos)
   "Display pixel width of region char at POS .
@@ -198,7 +216,7 @@ which can be much further down the file."
                              (point) (-sum (--map (get-next-column-width) (-repeat tab-width ()))))))
                      (forward-char)))
                  (next-line () ; advance to next line, maintaining state.
-                   (setq prev-widths (reverse space-widths))
+                   (setq prev-widths (nreverse space-widths))
                    (setq space-widths nil)
                    (setq reference-pos (point)) ; we go to next line exactly after we reached the last space
                    (forward-line)))

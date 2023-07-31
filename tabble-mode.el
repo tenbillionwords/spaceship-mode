@@ -27,6 +27,15 @@
   "Minimum size of the space that replaces a tab.  Expressed in pixels."
   :type 'int :group 'tabble)
 
+(defun tabble-mode-maybe ()
+  "Function to put in hooks, for example `prog-mode-hook'."
+  ;; See org-src-font-lock-fontify-block for buffer name.  tabble
+  ;; isn't needed in fontification buffers. Fontification is called on
+  ;; every keystroke (‽). Calling tabble-do-buffer on each
+  ;; keystroke on the whole block is very slow.
+  (unless (string-prefix-p " *org-src-fontification:" (buffer-name))
+    (tabble-mode)))
+
 (define-minor-mode tabble-mode
   "Mode for aligned tables with variable pitch fonts.
 When `tabble-mode' is enabled, tabstops in consecutive lines are the same.
