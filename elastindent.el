@@ -376,14 +376,18 @@ explanation of FORCE-PROPAGATE."
   (push (list elastindent-deleted-newline (copy-marker start) (copy-marker end t))
         elastindent-queue))
 
-
 ;; (defun elastindent-normalise-queue (q)
+;;   "Merging overlapping invervals in Q.
+;; Precondition: Q is sorted by interval start."
 ;;   (pcase q
 ;;     ((and `((,_ ,s0 ,e0) . ((,_ ,s1 ,e1) . ,rest)) (guard (>= e0 s1)))
 ;;      (elastindent-normalise-queue (cons (list t s0 (max e0 e1)) rest)))
 ;;     (`(,h . ,rest) (cons h (elastindent-normalise-queue rest)))))
 
 (defun elastindent-handle-queue ()
+  "Take care of intervals in queue.
+If input comes before the work can be finished, then stop and
+continue the work later, when idle."
   (setq elastindent-queue (-sort  (-on #'< #'cadr) elastindent-queue))
   (elastindent-with-context
     (while-no-input
