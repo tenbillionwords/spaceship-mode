@@ -81,6 +81,7 @@ will mess up the alignment.  You can run
         ;; tabble
         (add-hook 'before-change-functions 'elastindent-before-change-function nil t)
         (add-hook 'after-change-functions 'elastindent-after-change-function nil t)
+        (add-hook 'post-command-hook 'elastindent-handle-queue) ;; FIXME: tabble
         (add-hook 'text-scale-mode-hook 'elastindent-do-buffer nil t))
     (progn
       (remove-hook 'before-change-functions 'elastindent-before-change-function t)
@@ -166,6 +167,9 @@ This is a debug utility for `elastindent-mode'"
              (progn ,@body))
          (when ,temp-frame-symb
            (delete-frame ,temp-frame-symb))))))
+
+
+
 
 (defun elastindent-clear-region-properties (start end cue-prop props-to-remove)
   "Clear PROPS-TO-REMOVE text properties in given region.
@@ -320,20 +324,25 @@ lines which follow, if their indentation widths might be impacted
 by changes in given region.  See `elastindent-do' for the
 explanation of FORCE-PROPAGATE."
   (interactive "r")
-  ;; (message "edr: %s-%s" start end)
-  (elastindent-with-suitable-window
-    (save-excursion
-      (without-restriction
-        ;; for some reason clearing is necessary for fill-paragraph.
-        (elastindent-clear-region start end)
-        (goto-char start)
-        (with-silent-modifications
-          (elastindent-do force-propagate (current-column) end))))))
+  ;; for some reason clearing is necessary for fill-paragraph.
+  (elastindent-clear-region start end)
+  (goto-char start)
+  (elastindent-do force-propagate (current-column) end))
+
+(defmacro elastindent-with-context (&rest body)
+  (declare (indent 0))
+  `(save-match-data
+     (elastindent-with-suitable-window
+      (save-excursion
+        (without-restriction
+          (with-silent-modifications
+            ,@body))))))
 
 (defun elastindent-do-buffer ()
   "Adjust width of all indentation spaces and tabs in current buffer."
   (interactive)
-  (elastindent-do-region nil (point-min) (point-max)))
+  (elastindent-with-context
+    (elastindent-do-region nil (point-min) (point-max))))
 
 (defun elastindent-do-buffer-if-enabled ()
   "Call `elastindent-do-buffer' if `elastindent-mode' is enabled."
@@ -351,7 +360,7 @@ explanation of FORCE-PROPAGATE."
   (interactive)
   (elastindent-clear-region (point-min) (point-max)))
 
-(defvar elastindent-deleted-newline nil "Did the last change delete a newline?")
+(defvar-local elastindent-deleted-newline nil "Did the last change delete a newline?")
 
 (defun elastindent-before-change-function (start end)
   "Call `elastindent-do-region' for START and END."
@@ -360,10 +369,31 @@ explanation of FORCE-PROPAGATE."
           (goto-char start)
           (search-forward "\n" end t))))
 
+(defvar-local elastindent-queue nil)
+
 (defun elastindent-after-change-function (start end _len)
   "Call `elastindent-do-region' for START and END."
-  (save-match-data
-    (elastindent-do-region elastindent-deleted-newline start (elastindent-change-extend end))))
+  (push (list elastindent-deleted-newline (copy-marker start) (copy-marker end t))
+        elastindent-queue))
+
+
+;; (defun elastindent-normalise-queue (q)
+;;   (pcase q
+;;     ((and `((,_ ,s0 ,e0) . ((,_ ,s1 ,e1) . ,rest)) (guard (>= e0 s1)))
+;;      (elastindent-normalise-queue (cons (list t s0 (max e0 e1)) rest)))
+;;     (`(,h . ,rest) (cons h (elastindent-normalise-queue rest)))))
+
+(defun elastindent-handle-queue ()
+  (setq elastindent-queue (-sort  (-on #'< #'cadr) elastindent-queue))
+  (elastindent-with-context
+    (while-no-input
+      (while elastindent-queue
+        (apply #'elastindent-do-region (car elastindent-queue))
+        ;; pop only when we're done so we don' forget something due to 
+        (pop elastindent-queue)))
+    (when elastindent-queue	
+      ;; input came: we continue later.
+      (run-with-idle-timer 0.2 nil #'elastindent-handle-queue))))
 
 (provide 'elastindent)
 ;;; elastindent.el ends here
