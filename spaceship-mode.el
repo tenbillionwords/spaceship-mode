@@ -30,13 +30,17 @@
 ;;; possible purpose that including other space characters could serve.  Thus
 ;;; spaceship-mode treats other space characters as printing characters.
 
-(defvar spaceship-tab-pixel-width 20
-  "‘spaceship-mode’ will adjust all leading-space tabs to have this width")
+;;; Code:
 
-(defvar spaceship-auto-preserve nil
+(defcustom spaceship-tab-pixel-width 20
+  "‘spaceship-mode’ will adjust all leading-space tabs to have this width."
+  :type 'int :group 'spaceship)
+
+(defcustom spaceship-auto-preserve nil
   "Whether ‘spaceship-mode’ should attempt to preserve the alignment of blocks
 of code or text aligned to a line when that line is edited before the point of
-alignment.")
+alignment."
+  :type 'boolean :group 'spaceship)
 
 (define-minor-mode spaceship-mode
   "Automatically adjust width of space characters in certain places to allow
@@ -74,14 +78,37 @@ can run ‘spaceship-do-buffer’ to fix it."
 
 (defun spaceship-text-pixel-width (start end)
   "Return the pixel width of text between START and END in current buffer."
-  (car (window-text-pixel-size nil start end)))
+  (let ((c (car (window-text-pixel-size nil start end))))
+    (if (> c 2) c ;; Emacs bug: sometimes the returned window-text-pixel-size is negative. In this case computing it indirectly like below seems to fix the issue.
+      (- (car (window-text-pixel-size nil (1- start) end))
+         (car (window-text-pixel-size nil (1- start) start))))))
+
+(defun spaceship-char-pixel-width (pos)
+  "Return the pixel width of char at POS."
+  (if-let (p (get-char-property pos 'spaceship-width))
+      p
+    (let ((c (car (window-text-pixel-size nil pos (1+ pos)))))
+      (if (> c 2) c ;; Emacs bug: sometimes the returned window-text-pixel-size is negative. In this case computing it indirectly like below seems to fix the issue.
+      (- (car (window-text-pixel-size nil (1- pos) (1+ pos)))
+         (car (window-text-pixel-size nil (1- pos) pos)))))))
 
 (defun spaceship-show-text-pixel-width (start end)
   "Display pixel width of region text in minibuffer (debug utility for
 spaceship-mode)"
   (interactive "r")
-  (message "pixel width of region: %s"
+  (message "pixel width of region: %s dbg %s"
+           (car (window-text-pixel-size nil start end))
            (spaceship-text-pixel-width start end)))
+
+(defun spaceship-show-char-pixel-width (pos)
+  "Display pixel width of region char at POS .
+(debug utility for `spaceship-mode')"
+  (interactive "d")
+  (message "pixel width of region: %s, raw=%s, disp=%s, prop=%s"
+           (spaceship-char-pixel-width pos)
+           (car (window-text-pixel-size nil pos (1+ pos)))
+           (get-char-property pos 'spaceship-width)
+           (get-char-property pos 'display)))
 
 (defmacro spaceship-with-suitable-window (&rest body)
   "Executes BODY in a context where current buffer is guaranteed to have a
@@ -177,6 +204,14 @@ END such that CUE-PROP is t."
                 (t (cl-return-from inner-loop))))))
         (forward-line)))))
 
+(defconst spaceship-safe-line-regexp
+  (rx line-start (* "\t")
+      (? (group (not (any "\s\t\n"))
+                (* not-newline)))
+      line-end)
+  "Regexp to test whether a line is a safe starting point for the adjustments of
+`spaceship-mode', meaning it has no leading-space spaces.")
+
 (defun spaceship-do (start)
   "Adjust width of leading-space spaces in current buffer starting at the line
 with START and continuing to the next safe line."
@@ -184,12 +219,10 @@ with START and continuing to the next safe line."
     (save-excursion
       (goto-char start)
       ;; we assume the first line does not need to be processed
-      (let ((prev-line-start)
-            prev-line-end
+      (let ((prev-line-start (line-beginning-position))
+            (prev-line-end (line-end-position))
             cur-line-start cur-line-end
             char candidate candidate-pos)
-        (setq prev-line-start (line-beginning-position))
-        (setq prev-line-end (line-end-position))
         (forward-line)
         ;; loop over lines
         (while (not (or (eobp) ; in case buffer ended without newline
@@ -214,15 +247,11 @@ with START and continuing to the next safe line."
                      (cl-return))
                    ;; adjust width
                    (when (eql char ?\s)
-                     (put-text-property
-                      (point) (+ (point) 1)
-                      'display
-                      (list 'space :width
-                            (list (spaceship-text-pixel-width
-                                   candidate-pos (+ candidate-pos 1)))))
-                     (put-text-property
-                      (point) (+ (point) 1)
-                      'spaceship-adjusted t))
+                     (let ((w (spaceship-char-pixel-width candidate-pos)))
+                       (add-text-properties (point) (1+ (point))
+                                            (list 'display (list 'space :width (list w))
+                                                  'spaceship-adjusted t
+                                                  'spaceship-width w))))
                    ;; advance
                    (forward-char))
           (setq prev-line-start cur-line-start)
@@ -236,13 +265,6 @@ with START and continuing to the next safe line."
 
 ;; a safe line is a line without a space before a printing char
 
-(defconst spaceship-safe-line-regexp
-  (rx line-start (* "\t")
-      (? (group (not (any "\s\t\n"))
-                (* not-newline)))
-      line-end)
-  "Regexp to test whether a line is a safe starting point for the adjustments of
-spaceship-mode, meaning it has no leading-space spaces.")
 
 ;; (defconst spaceship-safe-line-regexp "^\t*\\([^\s\t\n][^\n]*\\)?$")
 
@@ -271,8 +293,9 @@ spaceship-mode, meaning it has no leading-space spaces.")
         (point-max))))
 
 (defun spaceship-do-region (start end)
-  "Adjust width of all leading-space spaces and tabs between START and END in
-current buffer, according to spaceship-mode rules."
+  "Adjust width of all leading-space spaces and tabs in given region.
+The region is between START and END in current buffer"
+  (interactive "r")
   (spaceship-with-suitable-window
     (let* ((start (spaceship-find-safe-start start))
            (end (spaceship-find-safe-end end))
@@ -283,12 +306,14 @@ current buffer, according to spaceship-mode rules."
         (setq pos (spaceship-do pos))))))
 
 (defun spaceship-do-buffer ()
+  "Adjust width of all leading-space spaces and tabs in current buffer."
   (interactive)
   (spaceship-do-region (point-min) (point-max)))
 
 (defun spaceship-clear-region (start end)
+  "Remove all spaceship-mode properties"
   (spaceship-clear-region-properties
-   start end 'spaceship-adjusted '(spaceship-adjusted display)))
+   start end 'spaceship-adjusted '(spaceship-adjusted spaceship-width display)))
 
 (defun spaceship-clear-buffer ()
   (spaceship-clear-region (point-min) (point-max)))
@@ -378,7 +403,7 @@ will end there."
   "Return the implied spaceship-block starting at START in current buffer.  The
 implied block is the longest legal block starting from a given position which is
 non-trivial in the sense that the prefix is non-empty.  It ends only when the
-next line no longer non-trivially matches under spaceship-mode rules."
+next line no longer non-trivially matches under `spaceship-mode' rules."
   (cl-block func
     (let (lines prefix prefix-len prefix-has-space possible-end)
       (save-excursion
@@ -391,7 +416,7 @@ next line no longer non-trivially matches under spaceship-mode rules."
                               (line-beginning-position) (point))))
         (unless prefix (cl-return-from func nil))
         (setq prefix-len (length prefix))
-        (setq prefix-has-space (seq-contains prefix ?\s))
+        (setq prefix-has-space (seq-contains-p prefix ?\s))
         (cl-block loop
           (while t
             (push (buffer-substring-no-properties
@@ -452,8 +477,7 @@ the contents otherwise unchanged."
         (insert "\n" new-prefix line)))))
 
 (defvar spaceship-preserved-block nil
-  "The spaceship-block saved for the purpose of having its alignment
-preserved.")
+  "The spaceship-block saved for the purpose of having its alignment preserved.")
 
 (defvar spaceship-saved-change-end nil
   "The end position of the spaceship-block trying to be preserved.")
@@ -480,11 +504,14 @@ preserved.")
         spaceship-saved-change-end nil))
 
 (defmacro spaceship-with-reported-errors (name &rest body)
-  "Execute BODY, trapping and reporting any errors which occur. This is a
-debugging utility for spaceship-mode and tabble-mode; it's really annoying when
-even a single error in an after-change or before-change function causes
-everything to immediately stop functioning.  I have removed calls to this macro
-from the public release because it circumvents a well-conceived safety feature."
+  "Execute BODY, trapping and reporting any errors which occur.
+This is a debugging utility for `spaceship-mode' and
+`tabble-mode', which catches errors and shows a message prefixed
+with NAME.  It's really annoying when even a single error in an
+after-change or before-change function causes everything to
+immediately stop functioning.  I have removed calls to this macro
+from the public release because it circumvents a well-conceived
+safety feature."
   (declare (indent 1))
   (let ((err (make-symbol "error")))
   `(condition-case ,err
@@ -493,7 +520,7 @@ from the public release because it circumvents a well-conceived safety feature."
                      ,name
                      (error-message-string ,err))))))
 
-(defun spaceship-before-change-function (start end)
+(defun spaceship-before-change-function (_start end)
   (save-match-data
     (when (and spaceship-auto-preserve
                (not undo-in-progress))
@@ -512,10 +539,11 @@ from the public release because it circumvents a well-conceived safety feature."
 ;;; spaceship-mode easier to demo in stock emacs
 
 (defun spaceship-simple-indent-line-function ()
-  "Copy the previous line's indentation.  This is a simple function to use as
-value of ‘indent-line-function’ to prevent emacs from messing up the
+  "Copy the previous line's indentation.
+This is a simple function to use as value of
+‘indent-line-function’ to prevent Emacs from messing up the
 ‘spaceship-mode’ conventions."
-  (let (prev-start prev-end prev-indentation start end)
+  (let (prev-start prev-end prev-indentation end)
     (save-excursion
       (beginning-of-line 0)
       (setq prev-start (point))
@@ -539,6 +567,6 @@ value of ‘indent-line-function’ to prevent emacs from messing up the
   (interactive)
   (if (spaceship-in-indentation-p)
       (delete-region (line-beginning-position) (point))
-    (backward-kill-word)))
+    (backward-kill-word 1)))
 
 (provide 'spaceship-mode)
