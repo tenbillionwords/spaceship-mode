@@ -87,6 +87,7 @@ will mess up the alignment.  You can run
       (remove-hook 'before-change-functions 'elastindent-before-change-function t)
       (remove-hook 'after-change-functions 'elastindent-after-change-function t)
       (remove-hook 'text-scale-mode-hook 'elastindent-do-buffer t)
+      (remove-hook 'post-command-hook 'elastindent-handle-queue) ;; FIXME: tabble
       (elastindent-clear-buffer))))
 
 (defcustom elastindent-reference-col-width 10
@@ -115,8 +116,8 @@ width of the column will be set to.
     (let ((c (car (window-text-pixel-size nil pos (1+ pos)))))
       (if (or (<= c 1) ; suspicious
               (elastindent-on-col-2 pos)) ; emacs is often wrong on that column, for some reason.
-        (- (car (window-text-pixel-size nil (1- pos) (1+ pos)))
-           (car (window-text-pixel-size nil (1- pos) pos)))
+          (- (car (window-text-pixel-size nil (1- pos) (1+ pos)))
+             (car (window-text-pixel-size nil (1- pos) pos)))
         c))))
 
 (defun elastindent-char-lvl (pos l-pos)
@@ -167,9 +168,6 @@ This is a debug utility for `elastindent-mode'"
              (progn ,@body))
          (when ,temp-frame-symb
            (delete-frame ,temp-frame-symb))))))
-
-
-
 
 (defun elastindent-clear-region-properties (start end cue-prop props-to-remove)
   "Clear PROPS-TO-REMOVE text properties in given region.
@@ -230,7 +228,7 @@ The car of I is the width, and the cdr of I is the level."
                   ((or ?\s ?\t) (or (backward-char 1) t)))))
     (bolp)))
 
-(defun elastindent-do (force-propagate start-col change-end)
+(defun elastindent-do-1 (force-propagate start-col change-end)
   "Adjust width of indentations.
 This is in response to a change starting at point and ending at
 CHANGE-END.  START-COL is the minimum column where a change
@@ -242,7 +240,7 @@ CHANGE-END.
 Thus a large value of START-COL means that little work needs to
 be done by this function.  This optimisation is important,
 because otherwise one needs to find a line with zero indentation,
-which can be much further down the file.
+which can be much further down the buffer.
 
 If a change spans several lines, then START-COL is ignored, and
 changes are propagated until indentation level reaches 0.
@@ -286,7 +284,7 @@ this way."
       (save-excursion
         (when (eq (forward-line -1) 0)
           (setq reference-pos (progn (move-to-column start-col) (point)))))
-      (message "%s: first line. update from startcol=%s curcol=%s" (line-number-at-pos) start-col (current-column))
+      ;; (message "%s: first line. update from startcol=%s curcol=%s" (line-number-at-pos) start-col (current-column))
       (when (elastindent-in-indent) ; if not characters are not to be changed.
         (char-loop))
       (next-line)
@@ -303,7 +301,7 @@ this way."
       (while (not (elastindent-column-leaves-indent start-col))
         (char-loop)
         (next-line))
-      (message "%s: propagation complete" (line-number-at-pos))
+      ;; (message "%s: propagation complete" (line-number-at-pos))
       )))
 
 (defun elastindent-change-extend (end)
@@ -324,17 +322,17 @@ lines which follow, if their indentation widths might be impacted
 by changes in given region.  See `elastindent-do' for the
 explanation of FORCE-PROPAGATE."
   (interactive "r")
-  ;; for some reason clearing is necessary for fill-paragraph.
   (elastindent-clear-region start end)
   (goto-char start)
-  (elastindent-do force-propagate (current-column) end))
+  (elastindent-do-1 force-propagate (current-column) end))
 
 (defmacro elastindent-with-context (&rest body)
+  "Run BODY in a context which is suitable for applying our adjustments."
   (declare (indent 0))
-  `(save-match-data
-     (elastindent-with-suitable-window
+  `(save-match-data ; just in case
+     (elastindent-with-suitable-window ; we need a window to compute the character widths.
       (save-excursion
-        (without-restriction
+        (without-restriction ; because changes may propagate beyond the restriction.
           (with-silent-modifications
             ,@body))))))
 
@@ -353,49 +351,58 @@ explanation of FORCE-PROPAGATE."
   "Remove all `elastindent-mode' properties between START and END."
   (interactive "r")
   (elastindent-clear-region-properties
-   start end 'elastindent-adjusted '(elastindent-adjusted elastindent-width elastindent-lvl display font-lock-face mouse-face)))
+   start end 'elastindent-adjusted '(elastindent-adjusted
+                                     elastindent-width
+                                     elastindent-lvl
+                                     display
+                                     font-lock-face
+                                     mouse-face)))
 
 (defun elastindent-clear-buffer ()
   "Remove all `elastindent-mode' properties in buffer."
   (interactive)
   (elastindent-clear-region (point-min) (point-max)))
 
-(defvar-local elastindent-deleted-newline nil "Did the last change delete a newline?")
+(defvar-local elastindent-deleted-newline nil
+  "Did the last change delete a newline?")
 
 (defun elastindent-before-change-function (start end)
-  "Call `elastindent-do-region' for START and END."
+  "Queue a call to `elastindent-do-region' for START and END."
   (setq elastindent-deleted-newline
         (save-excursion
           (goto-char start)
           (search-forward "\n" end t))))
 
-(defvar-local elastindent-queue nil)
+(defvar-local elastindent-queue nil
+  "Queue of changes to handle.
+We need queueing because some commands (for instance
+`fill-paragraph') will cause many changes, which may individually
+propagate down the buffer.  Doing all this work many times can
+cause visible slowdowns.")
 
 (defun elastindent-after-change-function (start end _len)
   "Call `elastindent-do-region' for START and END."
   (push (list elastindent-deleted-newline (copy-marker start) (copy-marker end t))
         elastindent-queue))
 
-;; (defun elastindent-normalise-queue (q)
-;;   "Merging overlapping invervals in Q.
-;; Precondition: Q is sorted by interval start."
-;;   (pcase q
-;;     ((and `((,_ ,s0 ,e0) . ((,_ ,s1 ,e1) . ,rest)) (guard (>= e0 s1)))
-;;      (elastindent-normalise-queue (cons (list t s0 (max e0 e1)) rest)))
-;;     (`(,h . ,rest) (cons h (elastindent-normalise-queue rest)))))
-
 (defun elastindent-handle-queue ()
   "Take care of intervals in queue.
 If input comes before the work can be finished, then stop and
 continue the work later, when idle."
-  (setq elastindent-queue (-sort  (-on #'< #'cadr) elastindent-queue))
+  (setq elastindent-queue (-sort (-on #'< #'cadr) elastindent-queue))
   (elastindent-with-context
-    (while-no-input
+    (goto-char (point-min))
+    (while-no-input ;  see post-command-hook documentation.
       (while elastindent-queue
-        (apply #'elastindent-do-region (car elastindent-queue))
-        ;; pop only when we're done so we don' forget something due to 
+        (pcase (car elastindent-queue)
+          (`(,force-propagate ,start ,end)
+           (when (> end (point)) ; otherwise the change has already been taken care of.
+             (elastindent-do-region force-propagate
+                                    (max (point) start) ; portion before point was already done.
+                                    end))))
+        ;; pop only when we're done so we don't forget something
         (pop elastindent-queue)))
-    (when elastindent-queue	
+    (when elastindent-queue
       ;; input came: we continue later.
       (run-with-idle-timer 0.2 nil #'elastindent-handle-queue))))
 
