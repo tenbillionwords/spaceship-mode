@@ -70,8 +70,8 @@ ultimately comes from some other kind of character higher up.
 
 Due to technical limitations, this mode does not try to detect
 situations where the font has changed but the text hasn't, which
-will mess up the alignment.  You can run
-‘elastindent-do-buffer-if-enabled’ to fix it."
+will mess up the alignment.  You can put
+‘elastindent-do-buffer-if-enabled’ in appropriate hooks to mitigate the problem."
   :init-value nil :lighter nil :global nil
   (if elastindent-mode
       (progn
