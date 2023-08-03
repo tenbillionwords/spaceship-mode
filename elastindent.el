@@ -302,7 +302,7 @@ this way."
         (char-loop)
         (next-line))
       ;; (message "%s: propagation complete" (line-number-at-pos))
-      )))
+      (beginning-of-line)))) ; we did not in fact propagate on this line yet.
 
 (defun elastindent-change-extend (end)
   "Return the first position after END which does not contain a space."
@@ -322,6 +322,7 @@ lines which follow, if their indentation widths might be impacted
 by changes in given region.  See `elastindent-do' for the
 explanation of FORCE-PROPAGATE."
   (interactive "r")
+  ;; (message "edr: (%s) %s-%s" force-propagate start end)
   (elastindent-clear-region start end)
   (goto-char start)
   (elastindent-do-1 force-propagate (current-column) end))
