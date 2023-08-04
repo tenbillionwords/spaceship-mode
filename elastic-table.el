@@ -20,7 +20,7 @@
 
 ;;; Code:
 (require 'cl-lib)
-(require 'qosmetic)
+(require 'elastic-tools)
 
 (defcustom elastable-column-minimum-margin 12
   "Minimum size of the space that replaces a tab.  Expressed in pixels."
@@ -56,9 +56,9 @@ empty (which happens when there are consecutive elastable tabs)."
       (progn
         (elastable-do-buffer)
         (add-hook 'text-scale-mode-hook 'elastable-do-buffer nil t)
-        (qosmetic-add-handler 'elastable-do-region 90))
+        (elastic-tools-add-handler 'elastable-do-region 90))
     (progn
-      (qosmetic-remove-handler 'elastable-do-region))
+      (elastic-tools-remove-handler 'elastable-do-region))
       (elastable-clear-buffer)))
 
 (cl-defstruct elastable rows (num-cols 0) (max-widths []))
@@ -135,7 +135,7 @@ calculating the correct widths needed to align the columns."
         (push (make-elastable-cell
                :start (point)
                :end (match-end 0)
-               :width (qosmetic-text-pixel-width (point) (match-end 0)))
+               :width (elastic-tools-text-pixel-width (point) (match-end 0)))
               cells)
         (goto-char (match-end 0))
         (unless (eobp) (forward-char)))
@@ -226,7 +226,7 @@ The region is between START and END in current buffer."
 (defun elastable-do-buffer ()
   "Reajust elastables in the current buffer."
   (interactive)
-  (qosmetic-with-context
+  (elastic-tools-with-context
     (elastable-do-region nil (point-min) (point-max))))
 
 (defun elastable-do-buffer-if-enabled ()
@@ -235,7 +235,7 @@ The region is between START and END in current buffer."
   (when 'elastable-mode (elastable-do-buffer)))
 
 (defun elastable-clear-region (start end)
-  (qosmetic-clear-region-properties
+  (elastic-tools-clear-region-properties
    start end 'elastable-adjusted '(elastable-adjusted display)))
 
 (defun elastable-clear-buffer ()

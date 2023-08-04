@@ -1,4 +1,4 @@
-;; elastindent-mode  --- fix indentation with variable-pitch fonts. -*- lexical-binding: t; -*-
+;; elastic-indent-mode  --- fix indentation with variable-pitch fonts. -*- lexical-binding: t; -*-
 ;; Copyright (C) 2023 Jean-Philippe Bernardy
 ;; Copyright (C) 2021 Scott Messick (tenbillionwords)
 
@@ -17,14 +17,14 @@
 
 ;;; Commentary:
 
-;;; General terminological note: elastindent-mode is concerned with
+;;; General terminological note: elastic-indent-mode is concerned with
 ;;; adjusting the width of only spaces and tabs which occur before a
 ;;; printing character (not space or tab) on a line.  We use the word
 ;;; “indentation” to refer to these tabs or spaces.  It is ambiguous
 ;;; whether Unicode space characters other than space and (horizontal)
 ;;; tab should be considered part of the leading space or not, but in
 ;;; the code we assume it is only spaces and tabs.  Thus
-;;; elastindent-mode treats other space characters as printing
+;;; elastic-indent-mode treats other space characters as printing
 ;;; characters.
 ;;; The support for tabs is currently limited.  Tabs can only be first
 ;;; in the indentation (they cannot follows spaces).  Editting code
@@ -34,61 +34,61 @@
 
 (require 'cl-lib)
 (require 'dash)
-(require 'qosmetic)
+(require 'elastic-tools)
 
-(defun elastindent-mode-maybe ()
+(defun elastic-indent-mode-maybe ()
   "Function to put in hooks, for example `prog-mode-hook'."
-  ;; See org-src-font-lock-fontify-block for buffer name.  Elastindent
+  ;; See org-src-font-lock-fontify-block for buffer name.  Elastic-Indent
   ;; isn't needed in fontification buffers. Fontification is called on
-  ;; every keystroke (‽). Calling elastindent-do-buffer on each
+  ;; every keystroke (‽). Calling elastic-indent-do-buffer on each
   ;; keystroke on the whole block is very slow.
   (unless (string-prefix-p " *org-src-fontification:" (buffer-name))
-    (elastindent-mode)))
+    (elastic-indent-mode)))
 
-(defgroup elastindent nil "Customization of elastic indentation."
+(defgroup elastic-indent nil "Customization of elastic indentation."
   :group 'elastic)
 
-(defcustom elastindent-lvl-cycle-size 1 "Size of the cycle used for faces.
+(defcustom elastic-indent-lvl-cycle-size 1 "Size of the cycle used for faces.
 If N is the cycle size, then faces 0 to N-1 will be used. See
-also `elastindent-fst-col-faces' and `elastindent-rest-faces'."
-  :type 'int :group 'elastindent)
+also `elastic-indent-fst-col-faces' and `elastic-indent-rest-faces'."
+  :type 'int :group 'elastic-indent)
 
-(defcustom elastindent-fontify t
+(defcustom elastic-indent-fontify t
   "If t, fontify indent levels.
 Fontification can only happen on a per-character basis.
 Therefore, if indentation is implemented by a mix of space and
 tabulation characters, as typical in Emacs source code, the
 results will not be pretty."
-  :type 'bool :group 'elastindent)
+  :type 'bool :group 'elastic-indent)
 
-(defface elastindent '((t (:inherit lazy-highlight))) "Face for indentation highlighting.")
-(defface elastindent-2 '((t (:inherit highlight))) "Second face for indentation highlighting.")
+(defface elastic-indent '((t (:inherit lazy-highlight))) "Face for indentation highlighting.")
+(defface elastic-indent-2 '((t (:inherit highlight))) "Second face for indentation highlighting.")
 
-(defcustom elastindent-fst-col-faces '(elastindent)
-  "Faces for various levels (First column)." :type '(list face) :group 'elastindent)
+(defcustom elastic-indent-fst-col-faces '(elastic-indent)
+  "Faces for various levels (First column)." :type '(list face) :group 'elastic-indent)
 
-(defcustom elastindent-rest-faces '(nil)
+(defcustom elastic-indent-rest-faces '(nil)
   "Faces for various levels (First column)."
   :type '(list face)
-  :group 'elastindent)
+  :group 'elastic-indent)
 
-(defface elastindent-vertical-lines '((t (:box (:line-width (-1 . 0))))) "Face for indentation lines.")
+(defface elastic-indent-vertical-lines '((t (:box (:line-width (-1 . 0))))) "Face for indentation lines.")
 
-(defun elastindent-fontify-alternate ()
+(defun elastic-indent-fontify-alternate ()
   "Highlight indentation by columns of alternating background color."
   (interactive)
-  (setq elastindent-lvl-cycle-size 2)
-  (setq elastindent-rest-faces '(elastindent elastindent-2))
-  (setq elastindent-fst-col-faces '(elastindent elastindent-2)))
+  (setq elastic-indent-lvl-cycle-size 2)
+  (setq elastic-indent-rest-faces '(elastic-indent elastic-indent-2))
+  (setq elastic-indent-fst-col-faces '(elastic-indent elastic-indent-2)))
 
-(defun elastindent-fontify-with-lines ()
+(defun elastic-indent-fontify-with-lines ()
   "Experimental way to fontify indentation."
   (interactive)
-  (setq elastindent-lvl-cycle-size 2)
-  (setq elastindent-rest-faces '(elastindent-vertical-lines default))
-  (setq elastindent-fst-col-faces '(elastindent-vertical-lines default)))
+  (setq elastic-indent-lvl-cycle-size 2)
+  (setq elastic-indent-rest-faces '(elastic-indent-vertical-lines default))
+  (setq elastic-indent-fst-col-faces '(elastic-indent-vertical-lines default)))
 
-(define-minor-mode elastindent-mode
+(define-minor-mode elastic-indent-mode
   "Improves indentation with in variable-pitch face.
 Adjust the width of indentation characters to align the indented
 code to the correct position.  The correct position is defined as
@@ -104,19 +104,20 @@ ultimately comes from some other kind of character higher up.
 Due to technical limitations, this mode does not try to detect
 situations where the font has changed but the text hasn't, which
 will mess up the alignment.  You can put
-‘elastindent-do-buffer-if-enabled’ in appropriate hooks to mitigate the problem."
+‘elastic-indent-do-buffer-if-enabled’ in appropriate hooks to
+mitigate the problem."
   :init-value nil :lighter nil :global nil
-  (if elastindent-mode
+  (if elastic-indent-mode
       (progn
-        ;; (message "activating elastindent in %s" (buffer-name))
-        (elastindent-do-buffer)
-        (qosmetic-add-handler 'elastindent-do-region 50)
-        (add-hook 'text-scale-mode-hook 'elastindent-do-buffer nil t))
+        ;; (message "activating elastic-indent in %s" (buffer-name))
+        (elastic-indent-do-buffer)
+        (elastic-tools-add-handler 'elastic-indent-do-region 50)
+        (add-hook 'text-scale-mode-hook 'elastic-indent-do-buffer nil t))
     (progn
-      (qosmetic-remove-handler 'elastindent-do-region)
-      (elastindent-clear-buffer))))
+      (elastic-tools-remove-handler 'elastic-indent-do-region)
+      (elastic-indent-clear-buffer))))
 
-(defun elastindent-char-lvl (pos l-pos)
+(defun elastic-indent-char-lvl (pos l-pos)
   "Return the indentation level at POS.
 An indentation level is not the colum, but rather defined as the
 number of times an indentation occured.  Level is negative for the
@@ -124,44 +125,44 @@ spaces which aren't in the first column of any given level.  If
 this cannot be determined locally by what happens at POS, then
 look at L-POS, which is a position just to the left of the
 position for which we want the level."
-  (or (get-text-property pos 'elastindent-lvl)
+  (or (get-text-property pos 'elastic-indent-lvl)
       (if (or (eq pos (point-min)) (eq (char-after (1- pos)) ?\n))
           1 ;; first char in the line. creates an indentation level by default.
-        (let ((lvl-before (get-text-property (1- pos) 'elastindent-lvl)))
+        (let ((lvl-before (get-text-property (1- pos) 'elastic-indent-lvl)))
           (if (and lvl-before (<= lvl-before 0))
               ;; it's a space before this position. Thus this character creates a new indentation level.
               (1+ (abs lvl-before))
-            (- (abs (or (get-text-property l-pos 'elastindent-lvl) 0)))))))) ; in case of tabs we have to come up with some number. Use 0.
+            (- (abs (or (get-text-property l-pos 'elastic-indent-lvl) 0)))))))) ; in case of tabs we have to come up with some number. Use 0.
 
-(defun elastindent-set-char-pixel-width (pos w)
+(defun elastic-indent-set-char-pixel-width (pos w)
   "Set the width of character at POS to be W.
 This only works if the character in question is a space or a tab.
 Also add text properties to remember that we did this change and
 by what."
   (if w (add-text-properties pos (1+ pos)
                              (list 'display (list 'space :width (list w))
-                                   'elastindent-adjusted t
-                                   'elastindent-width w))
-    (remove-text-properties pos (1+ pos) '(display elastindent-width elastindent-adjusted))))
+                                   'elastic-indent-adjusted t
+                                   'elastic-indent-width w))
+    (remove-text-properties pos (1+ pos) '(display elastic-indent-width elastic-indent-adjusted))))
 
-(defun elastindent-avg-info (lst)
+(defun elastic-indent-avg-info (lst)
   "Return the combination of infos in LST."
   (cons (-sum (-map 'car lst)) (-some 'cdr lst)))
 
-(defun elastindent-set-char-info (pos i)
+(defun elastic-indent-set-char-info (pos i)
   "Set width and face I for space at POS.
 The car of I is the width, and the cdr of I is the level."
   (when i
-    (elastindent-set-char-pixel-width pos (car i))
+    (elastic-indent-set-char-pixel-width pos (car i))
     (let* ((lvl (or (cdr i)))
-           (face-set (if (> lvl 0) elastindent-fst-col-faces elastindent-rest-faces))
-           (face (nth (mod lvl elastindent-lvl-cycle-size) face-set)))
-      (put-text-property pos (1+ pos) 'elastindent-lvl lvl)
-      (when (and elastindent-fontify lvl)
+           (face-set (if (> lvl 0) elastic-indent-fst-col-faces elastic-indent-rest-faces))
+           (face (nth (mod lvl elastic-indent-lvl-cycle-size) face-set)))
+      (put-text-property pos (1+ pos) 'elastic-indent-lvl lvl)
+      (when (and elastic-indent-fontify lvl)
         (if face (put-text-property pos (1+ pos) 'font-lock-face face)
           (remove-text-properties  pos (1+ pos) '(font-lock-face)))))))
 
-(defun elastindent-column-leaves-indent (target)
+(defun elastic-indent-column-leaves-indent (target)
   "Return t if by advancing TARGET columns one reaches the end of the indentation."
   (let ((col 0))
     (while (and (not (eobp)) (< col target))
@@ -172,7 +173,7 @@ The car of I is the width, and the cdr of I is the level."
       (when (<= 0 target) (forward-char)))
     (not (looking-at (rx (any "\s\t"))))))
 
-(defun elastindent-in-indent ()
+(defun elastic-indent-in-indent ()
   "Return t iff all characters to the left are indentation chars."
   (save-excursion
     (while (and (not (bolp))
@@ -180,7 +181,7 @@ The car of I is the width, and the cdr of I is the level."
                   ((or ?\s ?\t) (or (backward-char 1) t)))))
     (bolp)))
 
-(defun elastindent-do-1 (force-propagate start-col change-end)
+(defun elastic-indent-do-1 (force-propagate start-col change-end)
   "Adjust width of indentations.
 This is in response to a change starting at point and ending at
 CHANGE-END.  START-COL is the minimum column where a change
@@ -201,7 +202,7 @@ this way."
   (let (prev-widths ; the list of widths of each *column* of indentation of the previous line
         (reference-pos 0) ; the buffer position in the previous line of 1st printable char
         space-widths) ; accumulated widths of columns for current line
-    ;; (message "elastindent-do: %s [%s, %s]" start-col (point) change-end)
+    ;; (message "elastic-indent-do: %s [%s, %s]" start-col (point) change-end)
     (cl-flet*
         ((get-next-column-width () ; find reference width in the previous line. (effectful)
            (let* ((l-pos (1- (point)))
@@ -209,9 +210,9 @@ this way."
                        (if (eql (char-after reference-pos) ?\n) ; we're at the end of the reference line.
                            (cons nil (if (bolp)
                                          (- 1) ; we're at a space on the 1st column with an empty line above. No indentation here.
-                                       (- (abs (elastindent-char-lvl l-pos nil))))) ; leave width as is. Level is the same as char on the left; but not 1st column.
+                                       (- (abs (elastic-indent-char-lvl l-pos nil))))) ; leave width as is. Level is the same as char on the left; but not 1st column.
                          (prog1
-                             (cons (qosmetic-char-pixel-width reference-pos) (elastindent-char-lvl reference-pos l-pos))
+                             (cons (elastic-tools-char-pixel-width reference-pos) (elastic-indent-char-lvl reference-pos l-pos))
                            (setq reference-pos (1+ reference-pos)))))))
              (push w space-widths) ; cache width for next line
              ;; (message "char copy: %s->%s (w=%s) %s" (1- reference-pos) (point) w prev-widths)
@@ -224,9 +225,9 @@ this way."
                        (char (char-after))
                        (char-is-indent-c (or (eql char ?\s) (eql char ?\t))))
              (pcase char
-               (?\s (elastindent-set-char-info (point) (get-next-column-width)))
-               (?\t (elastindent-set-char-info (point)
-                                               (elastindent-avg-info
+               (?\s (elastic-indent-set-char-info (point) (get-next-column-width)))
+               (?\t (elastic-indent-set-char-info (point)
+                                               (elastic-indent-avg-info
                                                 (--map (get-next-column-width) (-repeat tab-width ()))))))
              (forward-char)))
          (next-line () ; advance to next line, maintaining state.
@@ -238,7 +239,7 @@ this way."
         (when (eq (forward-line -1) 0)
           (setq reference-pos (progn (move-to-column start-col) (point)))))
       ;; (message "%s: first line. update from startcol=%s curcol=%s" (line-number-at-pos) start-col (current-column))
-      (when (elastindent-in-indent) ; if not characters are not to be changed.
+      (when (elastic-indent-in-indent) ; if not characters are not to be changed.
         (char-loop))
       (next-line)
       (when (or force-propagate (< (point) change-end))
@@ -251,13 +252,13 @@ this way."
           (char-loop)
           (next-line)))
       ;; (message "%s: propagate changes and stop if indentation is too small" (line-number-at-pos))
-      (while (not (elastindent-column-leaves-indent start-col))
+      (while (not (elastic-indent-column-leaves-indent start-col))
         (char-loop)
         (next-line))
       ;; (message "%s: propagation complete" (line-number-at-pos))
       (beginning-of-line)))) ; we did not in fact propagate on this line yet.
 
-(defun elastindent-change-extend (end)
+(defun elastic-indent-change-extend (end)
   "Return the first position after END which does not contain a space."
   (max (point)
        (save-excursion
@@ -267,44 +268,44 @@ this way."
          (search-forward-regexp "[^\t\s]" nil t)
          (1- (point)))))
 
-(defun elastindent-do-region (force-propagate start end)
+(defun elastic-indent-do-region (force-propagate start end)
   "Adjust width of indentation characters in given region and propagate.
 The region is between START and END in current
 buffer.  Propagation means to also fix the indentation of the
 lines which follow, if their indentation widths might be impacted
-by changes in given region.  See `elastindent-do' for the
+by changes in given region.  See `elastic-indent-do' for the
 explanation of FORCE-PROPAGATE."
   ;; (message "edr: (%s) %s-%s" force-propagate start end)
-  (let ((e (elastindent-change-extend end)))
-    (elastindent-clear-region start e)
+  (let ((e (elastic-indent-change-extend end)))
+    (elastic-indent-clear-region start e)
     (goto-char start)
-    (elastindent-do-1 force-propagate (current-column) e)))
+    (elastic-indent-do-1 force-propagate (current-column) e)))
 
-(defun elastindent-do-buffer ()
+(defun elastic-indent-do-buffer ()
   "Adjust width of all indentation spaces and tabs in current buffer."
   (interactive)
-  (qosmetic-with-context
-    (elastindent-do-region nil (point-min) (point-max))))
+  (elastic-tools-with-context
+    (elastic-indent-do-region nil (point-min) (point-max))))
 
-(defun elastindent-do-buffer-if-enabled ()
-  "Call `elastindent-do-buffer' if `elastindent-mode' is enabled."
-  (when elastindent-mode (elastindent-do-buffer)))
+(defun elastic-indent-do-buffer-if-enabled ()
+  "Call `elastic-indent-do-buffer' if `elastic-indent-mode' is enabled."
+  (when elastic-indent-mode (elastic-indent-do-buffer)))
 
-(defun elastindent-clear-region (start end)
-  "Remove all `elastindent-mode' properties between START and END."
+(defun elastic-indent-clear-region (start end)
+  "Remove all `elastic-indent-mode' properties between START and END."
   (interactive "r")
-  (qosmetic-clear-region-properties
-   start end 'elastindent-adjusted '(elastindent-adjusted
-                                     elastindent-width
-                                     elastindent-lvl
+  (elastic-tools-clear-region-properties
+   start end 'elastic-indent-adjusted '(elastic-indent-adjusted
+                                     elastic-indent-width
+                                     elastic-indent-lvl
                                      display
                                      font-lock-face
                                      mouse-face)))
 
-(defun elastindent-clear-buffer ()
-  "Remove all `elastindent-mode' properties in buffer."
+(defun elastic-indent-clear-buffer ()
+  "Remove all `elastic-indent-mode' properties in buffer."
   (interactive)
-  (elastindent-clear-region (point-min) (point-max)))
+  (elastic-indent-clear-region (point-min) (point-max)))
 
-(provide 'elastindent)
-;;; elastindent.el ends here
+(provide 'elastic-indent)
+;;; elastic-indent.el ends here
