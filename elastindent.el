@@ -45,14 +45,36 @@
   (unless (string-prefix-p " *org-src-fontification:" (buffer-name))
     (elastindent-mode)))
 
-(defface elastindent-fst-col-lvl-1 '((t (:inherit region))) "Face for indentation level 1.")
-(defface elastindent-fst-col-lvl-2 '((t (:inherit region))) "Face for indentation level 2.")
-(defface elastindent-fst-col-lvl-3 '((t (:inherit region))) "Face for indentation level 3.")
-(defface elastindent-fst-col-lvl-4 '((t (:inherit region))) "Face for indentation level 4.")
-(defface elastindent-fst-col-lvl-5 '((t (:inherit region))) "Face for indentation level 5.")
-(defface elastindent-fst-col-lvl-6 '((t (:inherit region))) "Face for indentation level 6.")
-(defface elastindent-fst-col-lvl-7 '((t (:inherit region))) "Face for indentation level 7.")
-(defface elastindent-fst-col-lvl-0 '((t (:inherit region))) "Face for indentation level 8.")
+
+
+(defcustom elastindent-lvl-cycle-size 2 "Size of the cycle used for faces.
+If N is the cycle size, then faces 0 to N-1 will be used. See
+also `elastindent-fst-col-faces' and `elastindent-rest-faces'."
+  :type 'int :group 'elastindent)
+
+(defcustom elastindent-fontify t
+  "If t, fontify indent levels."
+  :type 'bool :group 'elastindent)
+
+(defface elastindent-fst-col-1 '((t (:inherit region))) "Face for indentation level 1, first column.")
+(defface elastindent-fst-col-0 '((t (:inherit region))) "Face for indentation level 2, first column.")
+
+(defcustom elastindent-fst-col-faces '(elastindent-fst-col-0
+                                       elastindent-fst-col-1)
+  "Faces for various levels (First column)." :type '(list face) :group 'elastindent)
+
+(defcustom elastindent-rest-faces '(nil nil)
+  "Faces for various levels (First column)."
+  :type '(list face)
+  :group 'elastindent)
+
+(defface elastindent-vertical-lines '((t (:box (:line-width (-1 . 0))))) "Face for indentation lines.")
+
+(defun elastindent-fontify-with-lines ()
+  "Experimental way to fontify indentation."
+  (setq elastindent-lvl-cycle-size 2)
+  (setq elastindent-rest-faces '(elastindent-vertical-lines default))
+  (setq elastindent-fst-col-faces '(elastindent-vertical-lines default)))
 
 (define-minor-mode elastindent-mode
   "Improves indentation with in variable-pitch face.
@@ -119,12 +141,13 @@ by what."
 The car of I is the width, and the cdr of I is the level."
   (when i
     (elastindent-set-char-pixel-width pos (car i))
-    (let* ((lvl (or (cdr i))))
+    (let* ((lvl (or (cdr i)))
+           (face-set (if (> lvl 0) elastindent-fst-col-faces elastindent-rest-faces))
+           (face (nth (mod lvl elastindent-lvl-cycle-size) face-set)))
       (put-text-property pos (1+ pos) 'elastindent-lvl lvl)
-      (if (and lvl (> lvl 0))
-          (put-text-property pos (1+ pos) 'font-lock-face
-                             (intern (concat "elastindent-fst-col-lvl-" (int-to-string (mod lvl 8)))))
-        (remove-list-of-text-properties pos (1+ pos) '(font-lock-face))))))
+      (when (and elastindent-fontify lvl)
+        (if face (put-text-property pos (1+ pos) 'font-lock-face face)
+          (remove-text-properties  pos (1+ pos) '(font-lock-face)))))))
 
 (defun elastindent-column-leaves-indent (target)
   "Return t if by advancing TARGET columns one reaches the end of the indentation."
@@ -137,7 +160,7 @@ The car of I is the width, and the cdr of I is the level."
       (when (<= 0 target) (forward-char)))
     (not (looking-at (rx (any "\s\t"))))))
 
-(defun elastindent-in-indent () ;; TODO: also return current column and avoid call to current-column
+(defun elastindent-in-indent ()
   "Return t iff all characters to the left are indentation chars."
   (save-excursion
     (while (and (not (bolp))
