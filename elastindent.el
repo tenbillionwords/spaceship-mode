@@ -45,33 +45,45 @@
   (unless (string-prefix-p " *org-src-fontification:" (buffer-name))
     (elastindent-mode)))
 
+(defgroup elastindent nil "Customization of elastic indentation."
+  :group 'elastic)
 
-
-(defcustom elastindent-lvl-cycle-size 2 "Size of the cycle used for faces.
+(defcustom elastindent-lvl-cycle-size 1 "Size of the cycle used for faces.
 If N is the cycle size, then faces 0 to N-1 will be used. See
 also `elastindent-fst-col-faces' and `elastindent-rest-faces'."
   :type 'int :group 'elastindent)
 
 (defcustom elastindent-fontify t
-  "If t, fontify indent levels."
+  "If t, fontify indent levels.
+Fontification can only happen on a per-character basis.
+Therefore, if indentation is implemented by a mix of space and
+tabulation characters, as typical in Emacs source code, the
+results will not be pretty."
   :type 'bool :group 'elastindent)
 
-(defface elastindent-fst-col-1 '((t (:inherit region))) "Face for indentation level 1, first column.")
-(defface elastindent-fst-col-0 '((t (:inherit region))) "Face for indentation level 2, first column.")
+(defface elastindent '((t (:inherit lazy-highlight))) "Face for indentation highlighting.")
+(defface elastindent-2 '((t (:inherit highlight))) "Second face for indentation highlighting.")
 
-(defcustom elastindent-fst-col-faces '(elastindent-fst-col-0
-                                       elastindent-fst-col-1)
+(defcustom elastindent-fst-col-faces '(elastindent)
   "Faces for various levels (First column)." :type '(list face) :group 'elastindent)
 
-(defcustom elastindent-rest-faces '(nil nil)
+(defcustom elastindent-rest-faces '(nil)
   "Faces for various levels (First column)."
   :type '(list face)
   :group 'elastindent)
 
 (defface elastindent-vertical-lines '((t (:box (:line-width (-1 . 0))))) "Face for indentation lines.")
 
+(defun elastindent-fontify-alternate ()
+  "Highlight indentation by columns of alternating background color."
+  (interactive)
+  (setq elastindent-lvl-cycle-size 2)
+  (setq elastindent-rest-faces '(elastindent elastindent-2))
+  (setq elastindent-fst-col-faces '(elastindent elastindent-2)))
+
 (defun elastindent-fontify-with-lines ()
   "Experimental way to fontify indentation."
+  (interactive)
   (setq elastindent-lvl-cycle-size 2)
   (setq elastindent-rest-faces '(elastindent-vertical-lines default))
   (setq elastindent-fst-col-faces '(elastindent-vertical-lines default)))
