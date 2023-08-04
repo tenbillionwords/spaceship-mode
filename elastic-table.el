@@ -1,4 +1,4 @@
-;; elastable-mode --- alignment using tabs with variable pitch fonts. -*- lexical-binding: t; -*-
+;; elastic-table-mode --- alignment using tabs with variable pitch fonts. -*- lexical-binding: t; -*-
 ;; Copyright (C) 2021 Scott Messick (tenbillionwords)
 
 ;; This program is free software: you can redistribute it and/or modify
@@ -14,125 +14,125 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-;;; Terminology: a tab after a printing char on a line is a “elastable tab” and a
-;;; line which has one is a “elastable line”.  A sequence of one or more
-;;; consecutive lines which have elastable tabs is a single “elastable”.
+;;; Terminology: a tab after a printing char on a line is a “elastic tab” and a
+;;; line which has one is a “elastic table line”.  A sequence of one or more
+;;; consecutive lines which have elastic tabs is a single “elastic table”.
 
 ;;; Code:
 (require 'cl-lib)
 (require 'elastic-tools)
 
-(defcustom elastable-column-minimum-margin 12
+(defcustom elastic-table-column-minimum-margin 12
   "Minimum size of the space that replaces a tab.  Expressed in pixels."
-  :type 'int :group 'elastable)
+  :type 'int :group 'elastic-table)
 
-(defun elastable-mode-maybe ()
+(defun elastic-table-mode-maybe ()
   "Function to put in hooks, for example `prog-mode-hook'."
-  ;; See org-src-font-lock-fontify-block for buffer name.  elastable
+  ;; See org-src-font-lock-fontify-block for buffer name.  elastic-table
   ;; isn't needed in fontification buffers. Fontification is called on
-  ;; every keystroke (‽). Calling elastable-do-buffer on each
+  ;; every keystroke (‽). Calling elastic-table-do-buffer on each
   ;; keystroke on the whole block is very slow.
   (unless (string-prefix-p " *org-src-fontification:" (buffer-name))
-    (elastable-mode)))
+    (elastic-table-mode)))
 
-(define-minor-mode elastable-mode
+(define-minor-mode elastic-table-mode
   "Mode for aligned tables with variable pitch fonts.
-When `elastable-mode' is enabled, tabstops in consecutive lines are the same.
+When `elastic-table-mode' is enabled, tabstops in consecutive lines are the same.
 
 This is implemented by automatically adjusting the width of tab
 characters which occur after the first printing char on a
-line (henceforth: “elastable tabs”) so to allow forming a kind of
-table (“elastables”) is adjusted for alignment.  A elastable is formed
-by a sequence of consecutive lines which each have elastable tabs
-and all have the same leading-space, and the corresponding elastable
+line (henceforth: “elastic tabs”) so to allow forming a kind of
+table (“elastic tables”) is adjusted for alignment.  A elastic table is formed
+by a sequence of consecutive lines which each have elastic table tabs
+and all have the same leading-space, and the corresponding elastic table
 tabs are adjusted so that the following text has the same
 horizontal position on each line.
 
-One consequence of these rules is that every elastable cell in the first column
-must have an entry, to avoid ending the elastable.  Other columns can be
-empty (which happens when there are consecutive elastable tabs)."
+One consequence of these rules is that every elastic table cell in the first column
+must have an entry, to avoid ending the elastic table.  Other columns can be
+empty (which happens when there are consecutive elastic tabs)."
   :init-value nil :lighter nil :global nil
-  (if elastable-mode
+  (if elastic-table-mode
       (progn
-        (elastable-do-buffer)
-        (add-hook 'text-scale-mode-hook 'elastable-do-buffer nil t)
-        (elastic-tools-add-handler 'elastable-do-region 90))
+        (elastic-table-do-buffer)
+        (add-hook 'text-scale-mode-hook 'elastic-table-do-buffer nil t)
+        (elastic-tools-add-handler 'elastic-table-do-region 90))
     (progn
-      (elastic-tools-remove-handler 'elastable-do-region))
-      (elastable-clear-buffer)))
+      (elastic-tools-remove-handler 'elastic-table-do-region))
+      (elastic-table-clear-buffer)))
 
-(cl-defstruct elastable rows (num-cols 0) (max-widths []))
-(cl-defstruct elastable-cell start end width)
+(cl-defstruct elastic-table rows (num-cols 0) (max-widths []))
+(cl-defstruct elastic-table-cell start end width)
 
 ;; WARNING: under certain circumstances, these rules imply that line-trailing
 ;; whitespace is significant.  To some extent, this is unavoidable, because you
-;; want the elastable to look right *as you're typing it*, including having the
+;; want the elastic table to look right *as you're typing it*, including having the
 ;; cursor show up in the right place right after you enter a tab char.  But
-;; another case is where a elastable is held together by a line whose only elastable tab
+;; another case is where an elastic table is held together by a line whose only elastic tab
 ;; is at the end of the line.  It's probably bad style to do that, but we don't
 ;; want to forbid it either, because it would require an ad hoc exception to the
 ;; above rules making this code harder to implement correctly and maintain.
 
-;; The rows of a elastable are its lines, and the cells of each row are the strings
+;; The rows of a elastic table are its lines, and the cells of each row are the strings
 ;; separated by tabs, with enough implicit empty cells in each row to make the
-;; number of columns consistent for the whole elastable.
+;; number of columns consistent for the whole elastic table.
 
-(defconst non-elastable-line-regexp
+(defconst non-elastic-table-line-regexp
   (rx bol
       (* blank)
       (? (group (not (any blank "\n")) ; after first printing char...
-                (* (not (any "\t\n"))))) ; any tab would be a elastable tab
+                (* (not (any "\t\n"))))) ; any tab would be a elastic-table tab
       eol))
 
-(defconst elastable-line-regexp
+(defconst elastic-table-line-regexp
   (rx bol
       (* blank)
       (not (any blank "\n"))
       (* (not (any "\t\n")))
       "\t"))
 
-(defconst elastable-leading-space-regexp
+(defconst elastic-table-leading-space-regexp
   ;; this always matches
   (rx (* "\t") (* (group (+ "\s") (+ "\t")))))
 
-(defun elastable-leading-space-string (pos)
+(defun elastic-table-leading-space-string (pos)
   (save-excursion
     (goto-char pos)
-    (looking-at elastable-leading-space-regexp)
+    (looking-at elastic-table-leading-space-regexp)
     (match-string-no-properties 0)))
 
-(defun elastable-do (start)
-  "Update alignment of the elastable starting at START.
-Do this by parsing and propertizing the elastable.  We assume START
+(defun elastic-table-do (start)
+  "Update alignment of the elastic table starting at START.
+Do this by parsing and propertizing the elastic table.  We assume START
 is correct."
   (save-excursion
     (goto-char start)
-    (let* ((leading-space (elastable-leading-space-string (point)))
+    (let* ((leading-space (elastic-table-leading-space-string (point)))
            (leading-space-len (length leading-space))
-           (the-elastable (make-elastable)))
+           (the-elastic-table (make-elastic-table)))
       (while (and (not (eobp))
-                  (equal leading-space (elastable-leading-space-string (point)))
-                  (looking-at elastable-line-regexp))
+                  (equal leading-space (elastic-table-leading-space-string (point)))
+                  (looking-at elastic-table-line-regexp))
         (forward-char leading-space-len)
-        (elastable-add-row the-elastable (point))
+        (elastic-table-add-row the-elastic-table (point))
         (forward-line))
       ;; note that rows are in reverse order, currently this shouldn't matter
-      (elastable-propertize the-elastable)
+      (elastic-table-propertize the-elastic-table)
       (point))))
 
-;; scan a row (line) and add it to the elastable, assuming pos is at end of
+;; scan a row (line) and add it to the elastic table, assuming pos is at end of
 ;; leading-space
-(defun elastable-add-row (the-elastable pos)
-  "Apply text properties to the elastable represented by THE-ELASTABLE after
+(defun elastic-table-add-row (the-elastic-table pos)
+  "Apply text properties to the elastic table represented by THE-ELASTIC-TABLE after
 calculating the correct widths needed to align the columns."
   (save-excursion
     (goto-char pos)
     (let ((line-end (line-end-position))
-          (old-num-cols (elastable-num-cols the-elastable))
+          (old-num-cols (elastic-table-num-cols the-elastic-table))
           cells len)
       (while (< (point) line-end)
         (looking-at "[^\t\n]*")
-        (push (make-elastable-cell
+        (push (make-elastic-table-cell
                :start (point)
                :end (match-end 0)
                :width (elastic-tools-text-pixel-width (point) (match-end 0)))
@@ -141,41 +141,41 @@ calculating the correct widths needed to align the columns."
         (unless (eobp) (forward-char)))
       (setq len (length cells))
       (setq cells (nreverse cells))
-      ;; add more columns to the elastable if needed
+      ;; add more columns to the elastic-table if needed
       (when (< old-num-cols len)
-        (setf (elastable-max-widths the-elastable)
+        (setf (elastic-table-max-widths the-elastic-table)
               (cl-concatenate 'vector
-                              (elastable-max-widths the-elastable)
+                              (elastic-table-max-widths the-elastic-table)
                               (make-vector (- len old-num-cols) 0)))
-        (setf (elastable-num-cols the-elastable) len))
+        (setf (elastic-table-num-cols the-elastic-table) len))
       ;; update the column widths
-      (cl-loop for i below (elastable-num-cols the-elastable)
+      (cl-loop for i below (elastic-table-num-cols the-elastic-table)
                for cell in cells
-               when (< (aref (elastable-max-widths the-elastable) i)
-                       (elastable-cell-width cell))
-               do (setf (aref (elastable-max-widths the-elastable) i)
-                        (elastable-cell-width cell)))
+               when (< (aref (elastic-table-max-widths the-elastic-table) i)
+                       (elastic-table-cell-width cell))
+               do (setf (aref (elastic-table-max-widths the-elastic-table) i)
+                        (elastic-table-cell-width cell)))
       ;; add the row
-      (push cells (elastable-rows the-elastable)))))
+      (push cells (elastic-table-rows the-elastic-table)))))
 
-(defface elastable-column-separator-face '((t)) "Face of column separators in a elastable.")
+(defface elastic-table-column-separator-face '((t)) "Face of column separators in a elastic-table.")
 
-(defun elastable-cursor-sensor (_window _pos action)
-  "Cursor sensor function for `elastable-mode'.
+(defun elastic-table-cursor-sensor (_window _pos action)
+  "Cursor sensor function for `elastic-table-mode'.
 This defun is added to the cursor-sensor-functions properties of
-elastable separators.  Depending on ACTION a elastable separator, show
+elastic-table separators.  Depending on ACTION a elastic-table separator, show
 or hide the separator boundaries by changing face attributes."
   (if (eq action 'entered)
-      (face-spec-set 'elastable-column-separator-face '((t (:box (:line-width (-1 . 0))))))
-      (face-spec-set 'elastable-column-separator-face '((t )))))
+      (face-spec-set 'elastic-table-column-separator-face '((t (:box (:line-width (-1 . 0))))))
+      (face-spec-set 'elastic-table-column-separator-face '((t )))))
 
-(defun elastable-propertize (the-elastable)
+(defun elastic-table-propertize (the-elastic-table)
   (with-silent-modifications
-    (dolist (row (elastable-rows the-elastable))
+    (dolist (row (elastic-table-rows the-elastic-table))
       (cl-loop
        for cell in row
        for col from 0
-       for pos = (elastable-cell-end cell)
+       for pos = (elastic-table-cell-end cell)
        ;; avoid propertizing newline after last cell
        when (equal (char-after pos) ?\t)
        do (progn
@@ -183,63 +183,63 @@ or hide the separator boundaries by changing face attributes."
              pos (1+ pos)
              (list 'display
                    (list 'space :width
-                         (list (- (+ (aref (elastable-max-widths the-elastable) col)
-                                     elastable-column-minimum-margin)
-                                  (elastable-cell-width cell))))
-                   'font-lock-face 'elastable-column-separator-face
-                   'cursor-sensor-functions (list 'elastable-cursor-sensor)
-                   'elastable-adjusted t)))))))
+                         (list (- (+ (aref (elastic-table-max-widths the-elastic-table) col)
+                                     elastic-table-column-minimum-margin)
+                                  (elastic-table-cell-width cell))))
+                   'font-lock-face 'elastic-table-column-separator-face
+                   'cursor-sensor-functions (list 'elastic-table-cursor-sensor)
+                   'elastic-table-adjusted t)))))))
 
-;; return start of a non-elastable line entirely before pos, if possible, or
-;; beginning of buffer otherwise.  we need to see a non-elastable line to be safe in
-;; case of changes on a line that affect a elastable which began earlier and used to
+;; return start of a non-elastic-table line entirely before pos, if possible, or
+;; beginning of buffer otherwise.  we need to see a non-elastic-table line to be safe in
+;; case of changes on a line that affect a elastic-table which began earlier and used to
 ;; include this line but now doesn't.
-(defun elastable-find-safe-start (pos)
-  "Return start of a non-elastable line entirely before POS.
+(defun elastic-table-find-safe-start (pos)
+  "Return start of a non-elastic-table line entirely before POS.
 If such a like does not exist, return the beginning of the
 buffer."
   (save-excursion
     (goto-char pos)
     (beginning-of-line)
-    (or (re-search-backward non-elastable-line-regexp nil t)
+    (or (re-search-backward non-elastic-table-line-regexp nil t)
         (point-min))))
 
-(defun elastable-find-safe-end (pos)
-  "Return end of a non-elastable line entirely after POS, or end of buffer."
+(defun elastic-table-find-safe-end (pos)
+  "Return end of a non-elastic-table line entirely after POS, or end of buffer."
   (save-excursion
     (goto-char pos)
     (forward-line)
-    (or (re-search-forward non-elastable-line-regexp nil t)
+    (or (re-search-forward non-elastic-table-line-regexp nil t)
         (point-max))))
 
-(defun elastable-do-region (_ start end)
-  "Update alignment of all elastables intersecting in the given region.
+(defun elastic-table-do-region (_ start end)
+  "Update alignment of all elastic-tables intersecting in the given region.
 The region is between START and END in current buffer."
-    (let ((start (elastable-find-safe-start start))
-          (end (elastable-find-safe-end end)))
-      (elastable-clear-region start end)
+    (let ((start (elastic-table-find-safe-start start))
+          (end (elastic-table-find-safe-end end)))
+      (elastic-table-clear-region start end)
       (goto-char start)
-      (while (re-search-forward elastable-line-regexp end :move-to-end)
+      (while (re-search-forward elastic-table-line-regexp end :move-to-end)
         (beginning-of-line)
-        (goto-char (elastable-do (point))))))
+        (goto-char (elastic-table-do (point))))))
 
-(defun elastable-do-buffer ()
-  "Reajust elastables in the current buffer."
+(defun elastic-table-do-buffer ()
+  "Reajust elastic tables in the current buffer."
   (interactive)
   (elastic-tools-with-context
-    (elastable-do-region nil (point-min) (point-max))))
+    (elastic-table-do-region nil (point-min) (point-max))))
 
-(defun elastable-do-buffer-if-enabled ()
-  "Call `elastable-do-buffer' if `elastable-mode' is enabled."
+(defun elastic-table-do-buffer-if-enabled ()
+  "Call `elastic-table-do-buffer' if `elastic-table-mode' is enabled."
   (interactive)
-  (when 'elastable-mode (elastable-do-buffer)))
+  (when 'elastic-table-mode (elastic-table-do-buffer)))
 
-(defun elastable-clear-region (start end)
+(defun elastic-table-clear-region (start end)
   (elastic-tools-clear-region-properties
-   start end 'elastable-adjusted '(elastable-adjusted display)))
+   start end 'elastic-table-adjusted '(elastic-table-adjusted display)))
 
-(defun elastable-clear-buffer ()
-  (elastable-clear-region (point-min) (point-max)))
+(defun elastic-table-clear-buffer ()
+  (elastic-table-clear-region (point-min) (point-max)))
 
-(provide 'elastable-mode)
-;;; elastable-mode.el ends here
+(provide 'elastic-table-mode)
+;;; elastic-table-mode.el ends here
