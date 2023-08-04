@@ -1,6 +1,6 @@
 ;; elastindent-mode  --- fix indentation with variable-pitch fonts. -*- lexical-binding: t; -*-
-;; Copyright (C) 2021 Scott Messick (tenbillionwords)
 ;; Copyright (C) 2023 Jean-Philippe Bernardy
+;; Copyright (C) 2021 Scott Messick (tenbillionwords)
 
 ;; This program is free software: you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -34,6 +34,7 @@
 
 (require 'cl-lib)
 (require 'dash)
+(require 'qosmetic)
 
 (defun elastindent-mode-maybe ()
   "Function to put in hooks, for example `prog-mode-hook'."
@@ -44,16 +45,14 @@
   (unless (string-prefix-p " *org-src-fontification:" (buffer-name))
     (elastindent-mode)))
 
-(defface elastindent-lvl-0 '((t (:inherit region))) "Face for indentation level column 0.")
-(defface elastindent-lvl-1 '((t (:inherit region))) "Face for indentation level column 1.")
-(defface elastindent-lvl-2 '((t (:inherit region))) "Face for indentation level column 2.")
-(defface elastindent-lvl-3 '((t (:inherit region))) "Face for indentation level column 3.")
-(defface elastindent-lvl-4 '((t (:inherit region))) "Face for indentation level column 4.")
-(defface elastindent-lvl-5 '((t (:inherit region))) "Face for indentation level column 5.")
-(defface elastindent-lvl-6 '((t (:inherit region))) "Face for indentation level column 6.")
-(defface elastindent-lvl-7 '((t (:inherit region))) "Face for indentation level column 7.")
-(defface elastindent-lvl-8 '((t (:inherit region))) "Face for indentation level column 8.")
-(defface elastindent-lvl-9 '((t (:inherit region))) "Face for indentation level column 9.")
+(defface elastindent-fst-col-lvl-1 '((t (:inherit region))) "Face for indentation level 1.")
+(defface elastindent-fst-col-lvl-2 '((t (:inherit region))) "Face for indentation level 2.")
+(defface elastindent-fst-col-lvl-3 '((t (:inherit region))) "Face for indentation level 3.")
+(defface elastindent-fst-col-lvl-4 '((t (:inherit region))) "Face for indentation level 4.")
+(defface elastindent-fst-col-lvl-5 '((t (:inherit region))) "Face for indentation level 5.")
+(defface elastindent-fst-col-lvl-6 '((t (:inherit region))) "Face for indentation level 6.")
+(defface elastindent-fst-col-lvl-7 '((t (:inherit region))) "Face for indentation level 7.")
+(defface elastindent-fst-col-lvl-0 '((t (:inherit region))) "Face for indentation level 8.")
 
 (define-minor-mode elastindent-mode
   "Improves indentation with in variable-pitch face.
@@ -77,48 +76,11 @@ will mess up the alignment.  You can put
       (progn
         ;; (message "activating elastindent in %s" (buffer-name))
         (elastindent-do-buffer)
-        ;; add change function to beginning of list, to ensure it comes before that of
-        ;; tabble
-        (add-hook 'before-change-functions 'elastindent-before-change-function nil t)
-        (add-hook 'after-change-functions 'elastindent-after-change-function nil t)
-        (add-hook 'post-command-hook 'elastindent-handle-queue) ;; FIXME: tabble
+        (qosmetic-add-handler 'elastindent-do-region 50)
         (add-hook 'text-scale-mode-hook 'elastindent-do-buffer nil t))
     (progn
-      (remove-hook 'before-change-functions 'elastindent-before-change-function t)
-      (remove-hook 'after-change-functions 'elastindent-after-change-function t)
-      (remove-hook 'text-scale-mode-hook 'elastindent-do-buffer t)
-      (remove-hook 'post-command-hook 'elastindent-handle-queue) ;; FIXME: tabble
+      (qosmetic-remove-handler 'elastindent-do-region)
       (elastindent-clear-buffer))))
-
-(defcustom elastindent-reference-col-width 10
-  "Default width of a column (space character) in pixels.
-When setting the width of a space character after the end of the
-previous line, there is no column to align to.  In this case, the
-width of the column will be set to.
-`elastindent-reference-col-width'."
-  :type 'int :group 'elastindent)
-
-(defun elastindent-on-col-2 (pos)
-  "Is POS on 2nd column?"
-  (save-excursion
-    (goto-char pos)
-    (and (not (bolp))
-         (progn (forward-char -1)
-                (bolp)))))
-
-(defun elastindent-char-pixel-width (pos)
-  "Return the pixel width of char at POS."
-  (if-let (p (get-text-property pos 'elastindent-width))
-      p
-    ;; Emacs bug: sometimes the returned window-text-pixel-size is
-    ;; wrong. In this case computing it indirectly like below
-    ;; seems to fix the issue.
-    (let ((c (car (window-text-pixel-size nil pos (1+ pos)))))
-      (if (or (<= c 1) ; suspicious
-              (elastindent-on-col-2 pos)) ; emacs is often wrong on that column, for some reason.
-          (- (car (window-text-pixel-size nil (1- pos) (1+ pos)))
-             (car (window-text-pixel-size nil (1- pos) pos)))
-        c))))
 
 (defun elastindent-char-lvl (pos l-pos)
   "Return the indentation level at POS.
@@ -135,52 +97,7 @@ position for which we want the level."
           (if (and lvl-before (<= lvl-before 0))
               ;; it's a space before this position. Thus this character creates a new indentation level.
               (1+ (abs lvl-before))
-            (- (abs (get-text-property l-pos 'elastindent-lvl))))))))
-
-(defun elastindent-show-char-pixel-width (pos)
-  "Display pixel width of region char at POS .
-This is a debug utility for `elastindent-mode'"
-  (interactive "d")
-  (message "pixel width of region: %s, raw=%s, disp=%s, prop=%s"
-           (elastindent-char-pixel-width pos)
-           (car (window-text-pixel-size nil pos (1+ pos)))
-           (get-char-property pos 'elastindent-width)
-           (get-char-property pos 'display)))
-
-(defmacro elastindent-with-suitable-window (&rest body)
-  "Execute BODY in a context where current buffer as a window."
-  (declare (indent 0))
-  (let ((temp-frame-symb (make-symbol "temp-frame"))
-        (window-symb (make-symbol "window")))
-    `(let* ((,window-symb (get-buffer-window nil t))
-            (,temp-frame-symb
-             (if ,window-symb
-                 nil
-               ;; the new frame will display the current buffer by default
-               (make-frame '((visibility . nil))))))
-       (unwind-protect
-           ;; using ‘with-selected-window’ is probably inefficient for
-           ;; our purposes, could rewrite to say explicitly exactly
-           ;; what really needs restoration
-           (with-selected-window
-               (or ,window-symb
-                   (frame-selected-window ,temp-frame-symb))
-             (progn ,@body))
-         (when ,temp-frame-symb
-           (delete-frame ,temp-frame-symb))))))
-
-(defun elastindent-clear-region-properties (start end cue-prop props-to-remove)
-  "Clear PROPS-TO-REMOVE text properties in given region.
-The region is the part between START and END which also has the
-text property CUE-PROP be t."
-  (with-silent-modifications
-    (cl-do ((pos1 start) pos2) (nil)
-      (setq pos1 (text-property-any pos1 end cue-prop t))
-      (unless pos1 (cl-return))
-      (setq pos2 (or (next-single-property-change pos1 cue-prop nil end)
-                     end))
-      (remove-list-of-text-properties pos1 pos2 props-to-remove)
-      (setq pos1 pos2))))
+            (- (abs (or (get-text-property l-pos 'elastindent-lvl) 0)))))))) ; in case of tabs we have to come up with some number. Use 0.
 
 (defun elastindent-set-char-pixel-width (pos w)
   "Set the width of character at POS to be W.
@@ -206,7 +123,7 @@ The car of I is the width, and the cdr of I is the level."
       (put-text-property pos (1+ pos) 'elastindent-lvl lvl)
       (if (and lvl (> lvl 0))
           (put-text-property pos (1+ pos) 'font-lock-face
-                             (intern (concat "elastindent-lvl-" (int-to-string (mod lvl 10)))))
+                             (intern (concat "elastindent-fst-col-lvl-" (int-to-string (mod lvl 8)))))
         (remove-list-of-text-properties pos (1+ pos) '(font-lock-face))))))
 
 (defun elastindent-column-leaves-indent (target)
@@ -250,37 +167,38 @@ this way."
         (reference-pos 0) ; the buffer position in the previous line of 1st printable char
         space-widths) ; accumulated widths of columns for current line
     ;; (message "elastindent-do: %s [%s, %s]" start-col (point) change-end)
-    (cl-flet* ((get-next-column-width () ; find reference width in the previous line. (effectful)
-                 (let* ((l-pos (1- (point)))
-                        (w (if prev-widths (pop prev-widths) ; we have a cached width: use it.
-                             (if (eql (char-after reference-pos) ?\n) ; we're at the end of the reference line.
-                                 (cons nil (if (bolp)
-                                               (- 1) ; we're at a space on the 1st column with an empty line above. No indentation here.
-                                             (- (abs (elastindent-char-lvl l-pos nil))))) ; leave width as is. Level is the same as char on the left; but not 1st column.
-                               (prog1
-                                   (cons (elastindent-char-pixel-width reference-pos) (elastindent-char-lvl reference-pos l-pos))
-                                 (setq reference-pos (1+ reference-pos)))))))
-                   (push w space-widths) ; cache width for next line
-                   ;; (message "char copy: %s->%s (w=%s) %s" (1- reference-pos) (point) w prev-widths)
-                   w))
-               (char-loop () ; take care of one line.
-                 ;; copy width from prev-widths, then reference-pos to (point). Loop to end of indentation.
-                 ;; Preconditions: cur col = start-col.  prev-widths=nil or contains cached widths
-                 ;; (message "@%s %s=>%s %s" (line-number-at-pos) (- reference-pos (length prev-widths)) (point) prev-widths)
-                 (while-let ((cur-line-not-ended-c (not (eolp)))
-                             (char (char-after))
-                             (char-is-indent-c (or (eql char ?\s) (eql char ?\t))))
-                   (pcase char
-                     (?\s (elastindent-set-char-info (point) (get-next-column-width)))
-                     (?\t (elastindent-set-char-info (point)
-                                                     (elastindent-avg-info
-                                                      (--map (get-next-column-width) (-repeat tab-width ()))))))
-                   (forward-char)))
-               (next-line () ; advance to next line, maintaining state.
-                 (setq prev-widths (nreverse space-widths))
-                 (setq space-widths nil)
-                 (setq reference-pos (point)) ; we go to next line exactly after we reached the last space
-                 (forward-line)))
+    (cl-flet*
+        ((get-next-column-width () ; find reference width in the previous line. (effectful)
+           (let* ((l-pos (1- (point)))
+                  (w (if prev-widths (pop prev-widths) ; we have a cached width: use it.
+                       (if (eql (char-after reference-pos) ?\n) ; we're at the end of the reference line.
+                           (cons nil (if (bolp)
+                                         (- 1) ; we're at a space on the 1st column with an empty line above. No indentation here.
+                                       (- (abs (elastindent-char-lvl l-pos nil))))) ; leave width as is. Level is the same as char on the left; but not 1st column.
+                         (prog1
+                             (cons (qosmetic-char-pixel-width reference-pos) (elastindent-char-lvl reference-pos l-pos))
+                           (setq reference-pos (1+ reference-pos)))))))
+             (push w space-widths) ; cache width for next line
+             ;; (message "char copy: %s->%s (w=%s) %s" (1- reference-pos) (point) w prev-widths)
+             w))
+         (char-loop () ; take care of one line.
+           ;; copy width from prev-widths, then reference-pos to (point). Loop to end of indentation.
+           ;; Preconditions: cur col = start-col.  prev-widths=nil or contains cached widths
+           ;; (message "@%s %s=>%s %s" (line-number-at-pos) (- reference-pos (length prev-widths)) (point) prev-widths)
+           (while-let ((cur-line-not-ended-c (not (eolp)))
+                       (char (char-after))
+                       (char-is-indent-c (or (eql char ?\s) (eql char ?\t))))
+             (pcase char
+               (?\s (elastindent-set-char-info (point) (get-next-column-width)))
+               (?\t (elastindent-set-char-info (point)
+                                               (elastindent-avg-info
+                                                (--map (get-next-column-width) (-repeat tab-width ()))))))
+             (forward-char)))
+         (next-line () ; advance to next line, maintaining state.
+           (setq prev-widths (nreverse space-widths))
+           (setq space-widths nil)
+           (setq reference-pos (point)) ; we go to next line exactly after we reached the last space
+           (forward-line)))
       (save-excursion
         (when (eq (forward-line -1) 0)
           (setq reference-pos (progn (move-to-column start-col) (point)))))
@@ -321,37 +239,26 @@ buffer.  Propagation means to also fix the indentation of the
 lines which follow, if their indentation widths might be impacted
 by changes in given region.  See `elastindent-do' for the
 explanation of FORCE-PROPAGATE."
-  (interactive "r")
   ;; (message "edr: (%s) %s-%s" force-propagate start end)
-  (elastindent-clear-region start end)
-  (goto-char start)
-  (elastindent-do-1 force-propagate (current-column) end))
-
-(defmacro elastindent-with-context (&rest body)
-  "Run BODY in a context which is suitable for applying our adjustments."
-  (declare (indent 0))
-  `(save-match-data ; just in case
-     (elastindent-with-suitable-window ; we need a window to compute the character widths.
-      (save-excursion
-        (without-restriction ; because changes may propagate beyond the restriction.
-          (with-silent-modifications
-            ,@body))))))
+  (let ((e (elastindent-change-extend end)))
+    (elastindent-clear-region start e)
+    (goto-char start)
+    (elastindent-do-1 force-propagate (current-column) e)))
 
 (defun elastindent-do-buffer ()
   "Adjust width of all indentation spaces and tabs in current buffer."
   (interactive)
-  (elastindent-with-context
+  (qosmetic-with-context
     (elastindent-do-region nil (point-min) (point-max))))
 
 (defun elastindent-do-buffer-if-enabled ()
   "Call `elastindent-do-buffer' if `elastindent-mode' is enabled."
-  (interactive)
-  (when 'elastindent-mode (elastindent-do-buffer)))
+  (when elastindent-mode (elastindent-do-buffer)))
 
 (defun elastindent-clear-region (start end)
   "Remove all `elastindent-mode' properties between START and END."
   (interactive "r")
-  (elastindent-clear-region-properties
+  (qosmetic-clear-region-properties
    start end 'elastindent-adjusted '(elastindent-adjusted
                                      elastindent-width
                                      elastindent-lvl
@@ -363,49 +270,6 @@ explanation of FORCE-PROPAGATE."
   "Remove all `elastindent-mode' properties in buffer."
   (interactive)
   (elastindent-clear-region (point-min) (point-max)))
-
-(defvar-local elastindent-deleted-newline nil
-  "Did the last change delete a newline?")
-
-(defun elastindent-before-change-function (start end)
-  "Queue a call to `elastindent-do-region' for START and END."
-  (setq elastindent-deleted-newline
-        (save-excursion
-          (goto-char start)
-          (search-forward "\n" end t))))
-
-(defvar-local elastindent-queue nil
-  "Queue of changes to handle.
-We need queueing because some commands (for instance
-`fill-paragraph') will cause many changes, which may individually
-propagate down the buffer.  Doing all this work many times can
-cause visible slowdowns.")
-
-(defun elastindent-after-change-function (start end _len)
-  "Call `elastindent-do-region' for START and END."
-  (push (list elastindent-deleted-newline (copy-marker start) (copy-marker end t))
-        elastindent-queue))
-
-(defun elastindent-handle-queue ()
-  "Take care of intervals in queue.
-If input comes before the work can be finished, then stop and
-continue the work later, when idle."
-  (setq elastindent-queue (-sort (-on #'< #'cadr) elastindent-queue))
-  (elastindent-with-context
-    (goto-char (point-min))
-    (while-no-input ;  see post-command-hook documentation.
-      (while elastindent-queue
-        (pcase (car elastindent-queue)
-          (`(,force-propagate ,start ,end)
-           (when (> end (point)) ; otherwise the change has already been taken care of.
-             (elastindent-do-region force-propagate
-                                    (max (point) start) ; portion before point was already done.
-                                    end))))
-        ;; pop only when we're done so we don't forget something
-        (pop elastindent-queue)))
-    (when elastindent-queue
-      ;; input came: we continue later.
-      (run-with-idle-timer 0.2 nil #'elastindent-handle-queue))))
 
 (provide 'elastindent)
 ;;; elastindent.el ends here
