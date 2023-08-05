@@ -38,11 +38,7 @@
 
 (defun elastic-indent-mode-maybe ()
   "Function to put in hooks, for example `prog-mode-hook'."
-  ;; See org-src-font-lock-fontify-block for buffer name.  Elastic-Indent
-  ;; isn't needed in fontification buffers. Fontification is called on
-  ;; every keystroke (‽). Calling elastic-indent-do-buffer on each
-  ;; keystroke on the whole block is very slow.
-  (unless (string-prefix-p " *org-src-fontification:" (buffer-name))
+  (unless (elastic-tools-no-activate)
     (elastic-indent-mode)))
 
 (defgroup elastic-indent nil "Customization of elastic indentation."

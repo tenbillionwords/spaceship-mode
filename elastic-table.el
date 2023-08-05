@@ -1,4 +1,5 @@
 ;; elastic-table-mode --- alignment using tabs with variable pitch fonts. -*- lexical-binding: t; -*-
+;; Copyright (C) 2023 JP Bernardy
 ;; Copyright (C) 2021 Scott Messick (tenbillionwords)
 
 ;; This program is free software: you can redistribute it and/or modify
@@ -22,17 +23,14 @@
 (require 'cl-lib)
 (require 'elastic-tools)
 
-(defcustom elastic-table-column-minimum-margin 12
-  "Minimum size of the space that replaces a tab.  Expressed in pixels."
+(defcustom elastic-table-column-minimum-margin nil
+  "Minimum size of the space that replaces a tab.  Expressed in pixels.
+By default, `frame-char-width` will be used."
   :type 'int :group 'elastic-table)
 
 (defun elastic-table-mode-maybe ()
   "Function to put in hooks, for example `prog-mode-hook'."
-  ;; See org-src-font-lock-fontify-block for buffer name.  elastic-table
-  ;; isn't needed in fontification buffers. Fontification is called on
-  ;; every keystroke (‽). Calling elastic-table-do-buffer on each
-  ;; keystroke on the whole block is very slow.
-  (unless (string-prefix-p " *org-src-fontification:" (buffer-name))
+  (unless (elastic-tools-no-activate)
     (elastic-table-mode)))
 
 (define-minor-mode elastic-table-mode
@@ -170,7 +168,8 @@ or hide the separator boundaries by changing face attributes."
       (face-spec-set 'elastic-table-column-separator-face '((t )))))
 
 (defun elastic-table-propertize (the-elastic-table)
-  (with-silent-modifications
+  (let ((min-col-sep (or elastic-table-column-minimum-margin
+                         (frame-char-width))))
     (dolist (row (elastic-table-rows the-elastic-table))
       (cl-loop
        for cell in row
@@ -184,7 +183,7 @@ or hide the separator boundaries by changing face attributes."
              (list 'display
                    (list 'space :width
                          (list (- (+ (aref (elastic-table-max-widths the-elastic-table) col)
-                                     elastic-table-column-minimum-margin)
+                                     min-col-sep)
                                   (elastic-table-cell-width cell))))
                    'font-lock-face 'elastic-table-column-separator-face
                    'cursor-sensor-functions (list 'elastic-table-cursor-sensor)

@@ -23,11 +23,22 @@
 
 ;;; Code:
 
+(defgroup elastic nil "Customization of elastic spacing (helps alignment in presence of proportional fonts)."
+  :group 'programming :group 'convenience)
+
 (defvar-local elastic-tools-handlers nil
   "Alist mapping handler function symbols to a depth.")
 
 (defvar-local elastic-tools-deleted-newline nil
   "Have we just deleted a newline character?")
+
+(defun elastic-tools-no-activate ()
+  ;; See org-src-font-lock-fontify-block for buffer name.  Elastic-Indent
+  ;; isn't needed in fontification buffers. Fontification is called on
+  ;; every keystroke (‽). Calling elastic-indent-do-buffer on each
+  ;; keystroke on the whole block is very slow.
+  ;; NOTE: this is mitigated by some optimisations, but still slow.
+  (string-prefix-p " *org-src-fontification:" (buffer-name)))
 
 (defun elastic-tools-add-handler (handler depth)
   "Register HANDLER at given DEPTH.
