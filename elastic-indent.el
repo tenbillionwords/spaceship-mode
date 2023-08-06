@@ -36,11 +36,6 @@
 (require 'dash)
 (require 'elastic-tools)
 
-(defun elastic-indent-mode-maybe ()
-  "Function to put in hooks, for example `prog-mode-hook'."
-  (unless (elastic-tools-no-activate)
-    (elastic-indent-mode)))
-
 (defgroup elastic-indent nil "Customization of elastic indentation."
   :group 'elastic)
 
@@ -104,14 +99,10 @@ will mess up the alignment.  You can put
 mitigate the problem."
   :init-value nil :lighter nil :global nil
   (if elastic-indent-mode
-      (progn
-        ;; (message "activating elastic-indent in %s" (buffer-name))
-        (elastic-indent-do-buffer)
-        (elastic-tools-add-handler 'elastic-indent-do-region 50)
-        (add-hook 'text-scale-mode-hook 'elastic-indent-do-buffer nil t))
-    (progn
+      (elastic-tools-add-handler 'elastic-indent-do-region 50)
+    progn
       (elastic-tools-remove-handler 'elastic-indent-do-region)
-      (elastic-indent-clear-buffer))))
+      (elastic-indent-clear-buffer)))
 
 (defun elastic-indent-char-lvl (pos l-pos)
   "Return the indentation level at POS.
@@ -277,26 +268,16 @@ explanation of FORCE-PROPAGATE."
     (goto-char start)
     (elastic-indent-do-1 force-propagate (current-column) e)))
 
-(defun elastic-indent-do-buffer ()
-  "Adjust width of all indentation spaces and tabs in current buffer."
-  (interactive)
-  (elastic-tools-with-context
-    (elastic-indent-do-region nil (point-min) (point-max))))
-
-(defun elastic-indent-do-buffer-if-enabled ()
-  "Call `elastic-indent-do-buffer' if `elastic-indent-mode' is enabled."
-  (when elastic-indent-mode (elastic-indent-do-buffer)))
-
 (defun elastic-indent-clear-region (start end)
   "Remove all `elastic-indent-mode' properties between START and END."
   (interactive "r")
   (elastic-tools-clear-region-properties
    start end 'elastic-indent-adjusted '(elastic-indent-adjusted
-                                     elastic-indent-width
-                                     elastic-indent-lvl
-                                     display
-                                     font-lock-face
-                                     mouse-face)))
+                                        elastic-indent-width
+                                        elastic-indent-lvl
+                                        display
+                                        font-lock-face
+                                        mouse-face)))
 
 (defun elastic-indent-clear-buffer ()
   "Remove all `elastic-indent-mode' properties in buffer."

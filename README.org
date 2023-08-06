@@ -1,0 +1,123 @@
+* Elastic Modes
+
+This is an Emacs package for text/code alignment for variable-width (aka proportional, or variable pitch) fonts.
+
+* Purpose
+
+Two minor modes for Emacs, ~elastic-indent~ and ~elastic-table~,
+automatically alter the width of certain spaces and/or tabs in the
+buffer to align buffer text.  The two modes operate independently and
+can be used separately or together.  They serve two purposes, broadly
+speaking:
+
+1. With a variable-width font, these modes provide some of the
+   alignment functionality that you would otherwise have gotten for
+   free by counting characters in a fixed-width (monospace) font.
+   This is the main motivation for them.
+	* Using ~elastic-indent~, the initial spaces on a line will
+          have their width adjusted to match the same number of
+          characters on previous lines, so that the left edge of the
+          text/code will be aligned as it would be in a fixed-width
+          font.
+	* Using ~elastic-table~, you can use tabs to align text in
+          other places than the left edge.  ~elastic-table~ is
+          essentially an implementation of [[https://nickgravgaard.com/elastic-tabstops/][elastic tabstops]].
+2. Certain features may be useful even with fixed-width fonts:
+	* Using ~elastic-table~ you can quickly create
+          automatically-aligned tables in text or code
+          using tab characters as the column separator.
+	* Using ~elastic-indent~ with ~spaceship-auto-preserve~
+          (considered experimental and disabled by default), aligned
+          code blocks will have their alignment preserved in certain
+          situations when the code they are aligned to changes
+          position during editing.
+
+* Caveats
+
+** Non-standard space/tab conventions.
+You must use spaces and tabs consistently in a way that supports the
+mode.  In particular, with ~elastic-indent~ you must strictly adhere
+to the convention of using tabs for indentation and spaces for
+alignment; otherwise it won't work.
+
+** No user interface
+ This code is provided as a backend only, and relies on conventions
+ that are contradictory to the assumptions of stock Emacs. It will
+ take some effort to integrate it into your workflow.  See example
+ setup below for some clues on how to get started.
+ 
+** No promises
+At time of release this code is untested with most major modes and
+popular Emacs extensions.  Issue reports are welcome, but please read
+the next section carefully first to be sure you understand the
+expected behavior.  Not every programming languages as a syntax
+compatible with these conventions.
+
+* What It Does, Precisely
+
+** elastic-indent
+
+Certain spaces have their widths adjusted to match that of another
+character on the previous line; generally speaking the nth initial
+space will match the nth character on the previous line, which might
+itself be an initial space that matches something further back.  To be
+precise, a character matches another character exactly when:
+
+- All previous characters on the same line match something, and
+- There is a corresponding character on the previous line and it is
+  eligible to be matched by this character:
+   * A tab can match only another tab.
+   * A space can match any character *except* a tab.
+   * Other characters do not match anything.
+
+Each matching space has its width modified to be the same as the
+character it matches.  This applies recursively: if the matched
+character's width is itself modified, the modified width is matched.
+If a tab character is found in the indentation, then it is treated as
+the equivalent number of spaces that it normally stands for (depending
+on the `tab-width` variable).
+
+The rules produce good results when only spaces are used for
+indentation, but they also work if tabs are used. The particular kind
+of mix found in the Emacs sources will also work, as well as the
+convention "tabs for indentation, spaces for alignment".
+
+** elastic-table
+
+Tabs which are not part of the leading space act as /column
+separators/.  A maximal sequence of consecutive lines containing
+column separators and with the same leading-space form an /elastic
+table/.  The ~elastic-table~ mode adjusts the width of all column
+separators so that the columns of each tabble are left-aligned.  Note
+that the first cell of each row cannot be empty since otherwise there
+would be no column separators in that line and the table would be
+ended.
+
+Note that, in a default Emacs configuration, typing ~TAB~ will not
+insert a tabulation character. You need to type ~C-q C-i~ to insert a
+column separator.
+
+** Example Setup
+A minimal setup with ~use-package~ may looks like so:
+
+#+begin_src elisp
+  ;; use a variable-pitch face in programming modes.
+  (add-hook 'prog-mode-hook
+            (lambda ()
+              (face-remap-add-relative 'default 'variable-pitch)))
+  ;; (Customize variable-pitch face properly)
+  
+  (use-package elastic-indent
+    :hook (prog-mode . elastic-indent-mode))
+
+  (use-package elastic-table
+    :hook (prog-mode . elastic-table-mode))
+#+end_src
+
+
+* Known Issues
+
+- Changing the font, or anything else that affects display widths
+  without runnning ~after-change-functions~ or ~text-scale-mode-hook~,
+  can mess up the alignment.  You can manually run the command
+  ~elastic-tools-do-buffer~ to fix this.

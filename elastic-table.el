@@ -28,11 +28,6 @@
 By default, `frame-char-width` will be used."
   :type 'int :group 'elastic-table)
 
-(defun elastic-table-mode-maybe ()
-  "Function to put in hooks, for example `prog-mode-hook'."
-  (unless (elastic-tools-no-activate)
-    (elastic-table-mode)))
-
 (define-minor-mode elastic-table-mode
   "Mode for aligned tables with variable pitch fonts.
 When `elastic-table-mode' is enabled, tabstops in consecutive lines are the same.
@@ -51,10 +46,7 @@ must have an entry, to avoid ending the elastic table.  Other columns can be
 empty (which happens when there are consecutive elastic tabs)."
   :init-value nil :lighter nil :global nil
   (if elastic-table-mode
-      (progn
-        (elastic-table-do-buffer)
-        (add-hook 'text-scale-mode-hook 'elastic-table-do-buffer nil t)
-        (elastic-tools-add-handler 'elastic-table-do-region 90))
+      (elastic-tools-add-handler 'elastic-table-do-region 90)
     (progn
       (elastic-tools-remove-handler 'elastic-table-do-region))
       (elastic-table-clear-buffer)))
@@ -222,17 +214,6 @@ The region is between START and END in current buffer."
         (beginning-of-line)
         (goto-char (elastic-table-do (point))))))
 
-(defun elastic-table-do-buffer ()
-  "Reajust elastic tables in the current buffer."
-  (interactive)
-  (elastic-tools-with-context
-    (elastic-table-do-region nil (point-min) (point-max))))
-
-(defun elastic-table-do-buffer-if-enabled ()
-  "Call `elastic-table-do-buffer' if `elastic-table-mode' is enabled."
-  (interactive)
-  (when 'elastic-table-mode (elastic-table-do-buffer)))
-
 (defun elastic-table-clear-region (start end)
   (elastic-tools-clear-region-properties
    start end 'elastic-table-adjusted '(elastic-table-adjusted display)))
@@ -240,5 +221,5 @@ The region is between START and END in current buffer."
 (defun elastic-table-clear-buffer ()
   (elastic-table-clear-region (point-min) (point-max)))
 
-(provide 'elastic-table-mode)
+(provide 'elastic-table)
 ;;; elastic-table-mode.el ends here

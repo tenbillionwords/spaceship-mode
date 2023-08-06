@@ -32,27 +32,31 @@
 (defvar-local elastic-tools-deleted-newline nil
   "Have we just deleted a newline character?")
 
-(defun elastic-tools-no-activate ()
-  ;; See org-src-font-lock-fontify-block for buffer name.  Elastic-Indent
-  ;; isn't needed in fontification buffers. Fontification is called on
-  ;; every keystroke (‽). Calling elastic-indent-do-buffer on each
-  ;; keystroke on the whole block is very slow.
-  ;; NOTE: this is mitigated by some optimisations, but still slow.
-  (string-prefix-p " *org-src-fontification:" (buffer-name)))
-
 (defun elastic-tools-add-handler (handler depth)
   "Register HANDLER at given DEPTH.
 Lower DEPTH means executed first."
   (setf (alist-get handler elastic-tools-handlers) depth)
   (setq elastic-tools-handlers (-sort (-on #'< #'cdr) elastic-tools-handlers))
-  (add-hook 'post-command-hook 'elastic-tools-handle-queue nil t)
-  (add-hook 'before-change-functions 'elastic-tools-before-change-function nil t)
-  (add-hook 'after-change-functions 'elastic-tools-after-change-function nil t))
+    (add-hook 'text-scale-mode-hook 'elastic-do-buffer nil t)
+    (add-hook 'post-command-hook 'elastic-tools-handle-queue nil t)
+    (add-hook 'before-change-functions 'elastic-tools-before-change-function nil t)
+    (add-hook 'after-change-functions 'elastic-tools-after-change-function nil t)
+    ;; Queue handling the buffer so it's taken care of by the new
+    ;; handler.  Note that when activating the modes (e.g. upon buffer
+    ;; creation, with this method, the buffer will be handled just
+    ;; once, and zero times if the buffer is not active at the end of
+    ;; the command. For instance, org-babel native fontification will
+    ;; create a temporary buffer that is never active, and therefore
+    ;; will not be handled. This is a good thing, because org-babel
+    ;; creates such a buffer at each keystroke, and handling it all
+    ;; every time is very slow.
+    (elastic-tools-queue-buffer))
 
 (defun elastic-tools-remove-handler (handler)
   "Unregister HANDLER."
   (setq elastic-tools-handlers (assq-delete-all handler elastic-tools-handlers))
   (unless elastic-tools-handlers
+    (remove-hook 'text-scale-mode-hook 'elastic-do-buffer)
     (remove-hook 'post-command-hook 'elastic-tools-handle-queue)
     (remove-hook 'before-change-functions 'elastic-tools-before-change-function t)
     (remove-hook 'after-change-functions 'elastic-tools-after-change-function t)))
@@ -112,6 +116,19 @@ cause visible slowdowns.")
         (without-restriction ; because changes may propagate beyond the restriction.
           (with-silent-modifications
             ,@body))))))
+
+
+(defun elastic-tools-do-buffer ()
+  "Call each `elastic-tools-handlers' on the whole buffer."
+  (interactive)
+  (elastic-tools-with-context
+    (dolist (hook (-map #'car elastic-tools-handlers))
+      (funcall hook t (point-min) (point-max)))))
+
+
+(defun elastic-tools-queue-buffer ()
+  "Queue handling the whole buffer."
+  (elastic-tools-after-change-function (point-min) (point-max) nil))
 
 (defun elastic-tools-handle-queue ()
   "Take care of intervals in queue.
