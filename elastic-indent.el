@@ -100,9 +100,8 @@ mitigate the problem."
   :init-value nil :lighter nil :global nil
   (if elastic-indent-mode
       (elastic-tools-add-handler 'elastic-indent-do-region 50)
-    progn
-      (elastic-tools-remove-handler 'elastic-indent-do-region)
-      (elastic-indent-clear-buffer)))
+    (elastic-tools-remove-handler 'elastic-indent-do-region)
+    (elastic-indent-clear-buffer)))
 
 (defun elastic-indent-char-lvl (pos l-pos)
   "Return the indentation level at POS.
