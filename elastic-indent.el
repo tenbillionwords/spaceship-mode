@@ -40,7 +40,7 @@
   :group 'elastic)
 
 (defcustom elastic-indent-lvl-cycle-size 1 "Size of the cycle used for faces.
-If N is the cycle size, then faces 0 to N-1 will be used. See
+If N is the cycle size, then faces 0 to N-1 will be used.  See
 also `elastic-indent-fst-col-faces' and `elastic-indent-rest-faces'."
   :type 'int :group 'elastic-indent)
 
@@ -132,9 +132,11 @@ by what."
                                    'elastic-indent-width w))
     (remove-text-properties pos (1+ pos) '(display elastic-indent-width elastic-indent-adjusted))))
 
-(defun elastic-indent-avg-info (lst)
-  "Return the combination of infos in LST."
-  (cons (-sum (-map 'car lst)) (-some 'cdr lst)))
+(defun elastic-indent-combine-info (std-width lst)
+  "Return the combination of infos in LST.
+STD-WIDTH is the width of a `tab-width' fraction of a tab."
+  (cons (-sum (--map (or (car it) std-width) lst))
+        (-some 'cdr lst)))
 
 (defun elastic-indent-set-char-info (pos i)
   "Set width and face I for space at POS.
@@ -188,6 +190,7 @@ FORCE-PROPAGATE forces even single-line changes to be treated
 this way."
   (let (prev-widths ; the list of widths of each *column* of indentation of the previous line
         (reference-pos 0) ; the buffer position in the previous line of 1st printable char
+        (std-width (window-font-width))
         space-widths) ; accumulated widths of columns for current line
     ;; (message "elastic-indent-do: %s [%s, %s]" start-col (point) change-end)
     (cl-flet*
@@ -214,7 +217,7 @@ this way."
              (pcase char
                (?\s (elastic-indent-set-char-info (point) (get-next-column-width)))
                (?\t (elastic-indent-set-char-info (point)
-                                               (elastic-indent-avg-info
+                                               (elastic-indent-combine-info std-width
                                                 (--map (get-next-column-width) (-repeat tab-width ()))))))
              (forward-char)))
          (next-line () ; advance to next line, maintaining state.
