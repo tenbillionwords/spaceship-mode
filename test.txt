@@ -6,12 +6,12 @@ iiii|	four i's and a bar
     |	four spaces and a bar
 
 Try typing spaces on the next line, noticing where the cursor falls.
+ 
 
 
 
 
-
-Example tabble to play with:
+Example elastic table to play with:
 
 Column A	Column B	Column C
 short	cells	first row
@@ -38,7 +38,7 @@ Relative indentation test:
 
 
 
-A code example using both modes.  Yes, tabble-mode is basically the same thing as “elastic tabstops”, but notice how you also need spaceship-mode to align the broken-up sum.
+A code example using both modes.  Yes, elastic-table-mode is basically the same thing as “elastic tabstops”, but notice how you also need elastic-indent-mode to align the broken-up sum.
 
 void exampleFunc(int s, int medium, int verylongargname) {
 	printf("sum of numbers: %i", s +	/* the first arg	*/
@@ -47,18 +47,3 @@ void exampleFunc(int s, int medium, int verylongargname) {
 	                             
 	                             
 	                             
-
-spaceship-auto-preserve test: evaluate the Lisp code (e.g. with ‘M-:’) and then try adding or removing x's:
-
-(setq-local spaceship-auto-preserve t)
-
-xxxxxx |
-       |
-       	asdf |
-       	     |
-       |
-       |
-       |
-
-
-

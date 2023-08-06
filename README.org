@@ -121,3 +121,9 @@ A minimal setup with ~use-package~ may looks like so:
   without runnning ~after-change-functions~ or ~text-scale-mode-hook~,
   can mess up the alignment.  You can manually run the command
   ~elastic-tools-do-buffer~ to fix this.
+
+* Acknowledgements
+
+This is a fork of Scott Messick's [[https://github.com/tenbillionwords/spaceship-mode][spaceship and tabble modes]]. This
+package provides a more traditional treatment of indentation, and has
+more focus on efficient runtime behavior.
