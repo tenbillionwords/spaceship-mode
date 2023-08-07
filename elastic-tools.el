@@ -89,7 +89,9 @@ Lower DEPTH means executed first."
         (save-excursion
           (goto-char start)
           (and (search-forward "\n" end t)
-               t)))) ; forget the actual position (for tidyness)
+               t))) ; forget the actual position (for tidyness)
+  ;; (message "etbcf: %s %s-%s" elastic-tools-deleted-newline start end)
+  ) 
 
 (defvar-local elastic-tools-queue nil
   "Queue of changes to handle.
@@ -104,6 +106,7 @@ cause visible slowdowns.")
 
 (defun elastic-tools-after-change-function (start end _len)
   "Queue a change between START and END to be handled by `elastic-tools-handlers'."
+  ;; (message "etacf: %s %s-%s" elastic-tools-deleted-newline start end)
   (elastic-tools-push (list elastic-tools-deleted-newline (copy-marker start) (copy-marker end t))
                  (car (car elastic-tools-handlers))))
 
@@ -139,7 +142,7 @@ continue the work later, when idle."
       (let ((hook (pop hooks)))
         ;; (message "elastic-tools: dealing with %s q=%s" hook (alist-get hook elastic-tools-queue))
         (setf (alist-get hook elastic-tools-queue)
-              (-sort (-on #'< #'cadr) (alist-get hook elastic-tools-queue)))
+              (--sort (or (< (cadr it) (cadr other)) (car it)) (alist-get hook elastic-tools-queue)))
         (elastic-tools-with-context
           (goto-char (point-min))
           (while-no-input ;  see post-command-hook documentation.

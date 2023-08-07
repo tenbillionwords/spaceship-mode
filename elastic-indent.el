@@ -227,24 +227,24 @@ this way."
       (save-excursion
         (when (eq (forward-line -1) 0)
           (setq reference-pos (progn (move-to-column start-col) (point)))))
-      ;; (message "%s: first line. update from startcol=%s curcol=%s" (line-number-at-pos) start-col (current-column))
+      (message "%s: first line. update from startcol=%s curcol=%s" (line-number-at-pos) start-col (current-column))
       (when (elastic-indent-in-indent) ; if not characters are not to be changed.
         (char-loop))
       (next-line)
-      (when (or force-propagate (< (point) change-end))
-        ;; (message "%s: main phase; update lines from col 0" (line-number-at-pos))
+      (when (or force-propagate (<= (point) change-end))
+        (message "%s: main phase; update lines from col 0" (line-number-at-pos))
         (when (> start-col 0)  ; reference is wrong now
           (setq start-col 0)
           (setq prev-widths nil)
           (setq reference-pos (save-excursion (forward-line -1) (point))))
-        (while (< (point) change-end)
+        (while (<= (point) change-end)
           (char-loop)
           (next-line)))
-      ;; (message "%s: propagate changes and stop if indentation is too small" (line-number-at-pos))
+      (message "%s: propagate changes and stop if indentation is too small" (line-number-at-pos))
       (while (not (elastic-indent-column-leaves-indent start-col))
         (char-loop)
         (next-line))
-      ;; (message "%s: propagation complete" (line-number-at-pos))
+      (message "%s: propagation complete" (line-number-at-pos))
       (beginning-of-line)))) ; we did not in fact propagate on this line yet.
 
 (defun elastic-indent-change-extend (end)
@@ -264,7 +264,7 @@ buffer.  Propagation means to also fix the indentation of the
 lines which follow, if their indentation widths might be impacted
 by changes in given region.  See `elastic-indent-do' for the
 explanation of FORCE-PROPAGATE."
-  ;; (message "edr: (%s) %s-%s" force-propagate start end)
+  (message "edr: (%s) %s-%s" force-propagate start end)
   (let ((e (elastic-indent-change-extend end)))
     (elastic-indent-clear-region start e)
     (goto-char start)
