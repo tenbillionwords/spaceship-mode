@@ -232,6 +232,7 @@ this way."
         (char-loop))
       (next-line)
       (when (or force-propagate (<= (point) change-end))
+        ;; this is a multiline change. It influences column 0.
         (message "%s: main phase; update lines from col 0" (line-number-at-pos))
         (when (> start-col 0)  ; reference is wrong now
           (setq start-col 0)
