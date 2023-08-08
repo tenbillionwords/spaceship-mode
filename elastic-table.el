@@ -1,4 +1,4 @@
-;; elastic-table-mode --- alignment using tabs with variable pitch fonts. -*- lexical-binding: t; -*-
+;; elastic-table --- alignment using tabs with variable pitch fonts. -*- lexical-binding: t; -*-
 ;; Copyright (C) 2023 JP Bernardy
 ;; Copyright (C) 2021 Scott Messick (tenbillionwords)
 
@@ -29,21 +29,23 @@ By default, `frame-char-width` will be used."
   :type 'int :group 'elastic-table)
 
 (define-minor-mode elastic-table-mode
-  "Mode for aligned tables with variable pitch fonts.
-When `elastic-table-mode' is enabled, tabstops in consecutive lines are the same.
+  "Mode for alignment of using tabs, with variable pitch fonts.
+When `elastic-table-mode' is enabled, tabstops in consecutive
+lines are the same.
 
 This is implemented by automatically adjusting the width of tab
 characters which occur after the first printing char on a
 line (henceforth: “elastic tabs”) so to allow forming a kind of
-table (“elastic tables”) is adjusted for alignment.  A elastic table is formed
-by a sequence of consecutive lines which each have elastic table tabs
-and all have the same leading-space, and the corresponding elastic table
-tabs are adjusted so that the following text has the same
-horizontal position on each line.
+table (“elastic tables”) is adjusted for alignment.  An elastic
+table is formed by a sequence of consecutive lines which each
+have elastic tabs and all have the same leading-space, and
+the corresponding elastic tabs are adjusted so that the
+following text has the same horizontal position on each line.
 
-One consequence of these rules is that every elastic table cell in the first column
-must have an entry, to avoid ending the elastic table.  Other columns can be
-empty (which happens when there are consecutive elastic tabs)."
+One consequence of these rules is that every elastic table cell
+in the first column must have an entry, to avoid ending the
+table.  Other columns can be empty (which happens when there are
+consecutive elastic tabs)."
   :init-value nil :lighter nil :global nil
   (if elastic-table-mode
       (elastic-tools-add-handler 'elastic-table-do-region 90)
@@ -99,26 +101,24 @@ is correct."
     (goto-char start)
     (let* ((leading-space (elastic-table-leading-space-string (point)))
            (leading-space-len (length leading-space))
-           (the-elastic-table (make-elastic-table)))
+           (the-table (make-elastic-table)))
       (while (and (not (eobp))
                   (equal leading-space (elastic-table-leading-space-string (point)))
                   (looking-at elastic-table-line-regexp))
         (forward-char leading-space-len)
-        (elastic-table-add-row the-elastic-table (point))
+        (elastic-table-add-row the-table (point))
         (forward-line))
       ;; note that rows are in reverse order, currently this shouldn't matter
-      (elastic-table-propertize the-elastic-table)
+      (elastic-table-propertize the-table)
       (point))))
 
-;; scan a row (line) and add it to the elastic table, assuming pos is at end of
-;; leading-space
-(defun elastic-table-add-row (the-elastic-table pos)
-  "Apply text properties to the elastic table represented by THE-ELASTIC-TABLE after
-calculating the correct widths needed to align the columns."
+(defun elastic-table-add-row (the-table pos)
+  "Scan a row and add it to THE-TABLE.
+Assuming POS is at end of leading-space."
   (save-excursion
     (goto-char pos)
     (let ((line-end (line-end-position))
-          (old-num-cols (elastic-table-num-cols the-elastic-table))
+          (old-num-cols (elastic-table-num-cols the-table))
           cells len)
       (while (< (point) line-end)
         (looking-at "[^\t\n]*")
@@ -133,20 +133,20 @@ calculating the correct widths needed to align the columns."
       (setq cells (nreverse cells))
       ;; add more columns to the elastic-table if needed
       (when (< old-num-cols len)
-        (setf (elastic-table-max-widths the-elastic-table)
+        (setf (elastic-table-max-widths the-table)
               (cl-concatenate 'vector
-                              (elastic-table-max-widths the-elastic-table)
+                              (elastic-table-max-widths the-table)
                               (make-vector (- len old-num-cols) 0)))
-        (setf (elastic-table-num-cols the-elastic-table) len))
+        (setf (elastic-table-num-cols the-table) len))
       ;; update the column widths
-      (cl-loop for i below (elastic-table-num-cols the-elastic-table)
+      (cl-loop for i below (elastic-table-num-cols the-table)
                for cell in cells
-               when (< (aref (elastic-table-max-widths the-elastic-table) i)
+               when (< (aref (elastic-table-max-widths the-table) i)
                        (elastic-table-cell-width cell))
-               do (setf (aref (elastic-table-max-widths the-elastic-table) i)
+               do (setf (aref (elastic-table-max-widths the-table) i)
                         (elastic-table-cell-width cell)))
       ;; add the row
-      (push cells (elastic-table-rows the-elastic-table)))))
+      (push cells (elastic-table-rows the-table)))))
 
 (defface elastic-table-column-separator-face '((t)) "Face of column separators in a elastic-table.")
 
@@ -159,10 +159,10 @@ or hide the separator boundaries by changing face attributes."
       (face-spec-set 'elastic-table-column-separator-face '((t (:box (:line-width (-1 . 0))))))
       (face-spec-set 'elastic-table-column-separator-face '((t )))))
 
-(defun elastic-table-propertize (the-elastic-table)
+(defun elastic-table-propertize (the-table)
   (let ((min-col-sep (or elastic-table-column-minimum-margin
                          (frame-char-width))))
-    (dolist (row (elastic-table-rows the-elastic-table))
+    (dolist (row (elastic-table-rows the-table))
       (cl-loop
        for cell in row
        for col from 0
@@ -174,7 +174,7 @@ or hide the separator boundaries by changing face attributes."
              pos (1+ pos)
              (list 'display
                    (list 'space :width
-                         (list (- (+ (aref (elastic-table-max-widths the-elastic-table) col)
+                         (list (- (+ (aref (elastic-table-max-widths the-table) col)
                                      min-col-sep)
                                   (elastic-table-cell-width cell))))
                    'font-lock-face 'elastic-table-column-separator-face
@@ -222,4 +222,4 @@ The region is between START and END in current buffer."
   (elastic-table-clear-region (point-min) (point-max)))
 
 (provide 'elastic-table)
-;;; elastic-table-mode.el ends here
+;;; elastic-table.el ends here
