@@ -148,13 +148,15 @@ Assuming POS is at end of leading-space."
       ;; add the row
       (push cells (elastic-table-rows the-table)))))
 
-(defface elastic-table-column-separator-face '((t)) "Face of column separators in a elastic-table.")
+(defface elastic-table-column-separator-face '((t))
+  "Face of column separators in an elastic-table.")
 
 (defun elastic-table-cursor-sensor (_window _pos action)
   "Cursor sensor function for `elastic-table-mode'.
 This defun is added to the cursor-sensor-functions properties of
-elastic-table separators.  Depending on ACTION a elastic-table separator, show
-or hide the separator boundaries by changing face attributes."
+elastic-table separators.  Depending on ACTION an elastic-table
+separator, show or hide the separator boundaries by changing face
+attributes."
   (if (eq action 'entered)
       (face-spec-set 'elastic-table-column-separator-face '((t (:box (:line-width (-1 . 0))))))
       (face-spec-set 'elastic-table-column-separator-face '((t )))))
