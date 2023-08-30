@@ -37,10 +37,10 @@
 Lower DEPTH means executed first."
   (setf (alist-get handler elastic-tools-handlers) depth)
   (setq elastic-tools-handlers (-sort (-on #'< #'cdr) elastic-tools-handlers))
-    (add-hook 'text-scale-mode-hook 'elastic-do-buffer nil t)
-    (add-hook 'post-command-hook 'elastic-tools-handle-queue nil t)
-    (add-hook 'before-change-functions 'elastic-tools-before-change-function nil t)
-    (add-hook 'after-change-functions 'elastic-tools-after-change-function nil t)
+    (add-hook 'text-scale-mode-hook #'elastic-tools-queue-buffer t)
+    (add-hook 'post-command-hook #'elastic-tools-handle-queue nil t)
+    (add-hook 'before-change-functions #'elastic-tools-before-change-function nil t)
+    (add-hook 'after-change-functions #'elastic-tools-after-change-function nil t)
     ;; Queue handling the buffer so it's taken care of by the new
     ;; handler.  Note that when activating the modes (e.g. upon buffer
     ;; creation, with this method, the buffer will be handled just
@@ -56,10 +56,10 @@ Lower DEPTH means executed first."
   "Unregister HANDLER."
   (setq elastic-tools-handlers (assq-delete-all handler elastic-tools-handlers))
   (unless elastic-tools-handlers
-    (remove-hook 'text-scale-mode-hook 'elastic-do-buffer)
-    (remove-hook 'post-command-hook 'elastic-tools-handle-queue)
-    (remove-hook 'before-change-functions 'elastic-tools-before-change-function t)
-    (remove-hook 'after-change-functions 'elastic-tools-after-change-function t)))
+    (remove-hook 'text-scale-mode-hook #'elastic-tools-queue-buffer)
+    (remove-hook 'post-command-hook #'elastic-tools-handle-queue)
+    (remove-hook 'before-change-functions #'elastic-tools-before-change-function t)
+    (remove-hook 'after-change-functions #'elastic-tools-after-change-function t)))
 
 (defmacro elastic-tools-with-suitable-window (&rest body)
   "Execute BODY in a context where current buffer as a window."
@@ -91,7 +91,7 @@ Lower DEPTH means executed first."
           (and (search-forward "\n" end t)
                t))) ; forget the actual position (for tidyness)
   ;; (message "etbcf: %s %s-%s" elastic-tools-deleted-newline start end)
-  ) 
+  )
 
 (defvar-local elastic-tools-queue nil
   "Queue of changes to handle.
